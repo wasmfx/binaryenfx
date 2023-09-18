@@ -869,6 +869,13 @@ void SExpressionWasmBuilder::preParseHeapTypes(Element& module) {
                      builder.getTempTupleType(results));
   };
 
+  auto parseContinuationDef = [&](Element& elem) {
+    // '(' 'cont' '(type' index ')' ')' | '(' 'cont' '(type' name ')' ')'
+
+    HeapType ht = parseTypeRef(elem);
+    return Continuation(ht);
+  };
+
   // Parses a field, and notes the name if one is found.
   auto parseField = [&](Element* elem, Name& name) {
     Mutability mutable_ = Immutable;
@@ -948,6 +955,11 @@ void SExpressionWasmBuilder::preParseHeapTypes(Element& module) {
       Element& subtypeKind = *subtype[0];
       if (subtypeKind == FUNC) {
         builder[index] = parseSignatureDef(subtype, 0);
+      } else if (kind == CONT) {
+        // FIXME(frank-emrich) Should we support this?
+        throw ParseException("continuation type in subtype definition",
+                             subtypeKind.line,
+                             subtypeKind.col);
       } else if (subtypeKind == STRUCT) {
         builder[index] = parseStructDef(subtype, index, 0);
       } else if (subtypeKind == ARRAY) {
@@ -959,6 +971,8 @@ void SExpressionWasmBuilder::preParseHeapTypes(Element& module) {
     } else {
       if (kind == FUNC) {
         builder[index] = parseSignatureDef(def, 0);
+      } else if (kind == CONT) {
+        builder[index] = parseContinuationDef(def);
       } else if (kind == FUNC_SUBTYPE) {
         builder[index].setOpen();
         builder[index] = parseSignatureDef(def, 1);

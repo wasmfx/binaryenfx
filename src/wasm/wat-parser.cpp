@@ -470,6 +470,7 @@ struct NullTypeParserCtx {
   using ResultsT = size_t;
   using BlockTypeT = Ok;
   using SignatureT = Ok;
+  using ContinuationT = Ok;
   using StorageT = Ok;
   using FieldT = Ok;
   using FieldsT = Ok;
@@ -509,6 +510,7 @@ struct NullTypeParserCtx {
   size_t getResultsSize(size_t results) { return results; }
 
   SignatureT makeFuncType(ParamsT*, ResultsT*) { return Ok{}; }
+  ContinuationT makeContType(HeapTypeT) { return Ok{}; }
 
   StorageT makeI8() { return Ok{}; }
   StorageT makeI16() { return Ok{}; }
@@ -549,6 +551,7 @@ template<typename Ctx> struct TypeParserCtx {
   using ResultsT = std::vector<Type>;
   using BlockTypeT = HeapType;
   using SignatureT = Signature;
+  using ContinuationT = Continuation;
   using StorageT = Field;
   using FieldT = Field;
   using FieldsT = std::pair<std::vector<Name>, std::vector<Field>>;
@@ -602,6 +605,8 @@ template<typename Ctx> struct TypeParserCtx {
     return Signature(self().makeTupleType(paramTypes),
                      self().makeTupleType(resultTypes));
   }
+
+  ContinuationT makeContType(HeapTypeT ft) { return Continuation(ft); }
 
   StorageT makeI8() { return Field(Field::i8, Immutable); }
   StorageT makeI16() { return Field(Field::i16, Immutable); }
@@ -847,6 +852,7 @@ struct ParseDeclsCtx : NullTypeParserCtx, NullInstrParserCtx {
   ParseDeclsCtx(std::string_view in, Module& wasm) : in(in), wasm(wasm) {}
 
   void addFuncType(SignatureT) {}
+  void addContType(ContinuationT) {}
   void addStructType(StructT) {}
   void addArrayType(ArrayT) {}
   void setOpen() {}
@@ -1066,6 +1072,7 @@ struct ParseTypeDefsCtx : TypeParserCtx<ParseTypeDefsCtx> {
   }
 
   void addFuncType(SignatureT& type) { builder[index] = type; }
+  void addContType(ContinuationT& type) { builder[index] = type; }
 
   void addStructType(StructT& type) {
     auto& [fieldNames, str] = type;
@@ -1834,6 +1841,7 @@ template<typename Ctx> Result<typename Ctx::TypeT> valtype(Ctx&);
 template<typename Ctx> MaybeResult<typename Ctx::ParamsT> params(Ctx&);
 template<typename Ctx> MaybeResult<typename Ctx::ResultsT> results(Ctx&);
 template<typename Ctx> MaybeResult<typename Ctx::SignatureT> functype(Ctx&);
+template<typename Ctx> MaybeResult<typename Ctx::ContinuationT> conttype(Ctx&);
 template<typename Ctx> Result<typename Ctx::FieldT> storagetype(Ctx&);
 template<typename Ctx> Result<typename Ctx::FieldT> fieldtype(Ctx&);
 template<typename Ctx> Result<typename Ctx::FieldsT> fields(Ctx&);
@@ -2212,6 +2220,24 @@ MaybeResult<typename Ctx::SignatureT> functype(Ctx& ctx) {
   }
 
   return ctx.makeFuncType(parsedParams.getPtr(), parsedResults.getPtr());
+}
+
+// conttype ::= '(' 'cont'  x:typeidx ')' => cont x
+template<typename Ctx>
+MaybeResult<typename Ctx::ContinuationT> conttype(Ctx& ctx) {
+  if (!ctx.in.takeSExprStart("cont"sv)) {
+
+    return ctx.in.err("expected cont");
+  }
+
+  auto x = typeidx(ctx);
+  CHECK_ERR(x);
+
+  if (!ctx.in.takeRParen()) {
+    return ctx.in.err("expected end of cont type");
+  }
+
+  return ctx.makeContType(*x);
 }
 
 // storagetype ::= valtype | packedtype
@@ -3430,12 +3456,18 @@ Result<std::vector<Name>> inlineExports(ParseInput& in) {
 }
 
 // strtype ::= ft:functype   => ft
+//           | ct:conttype   => ct
 //           | st:structtype => st
 //           | at:arraytype  => at
 template<typename Ctx> Result<> strtype(Ctx& ctx) {
   if (auto type = functype(ctx)) {
     CHECK_ERR(type);
     ctx.addFuncType(*type);
+    return Ok{};
+  }
+  if (auto type = conttype(ctx)) {
+    CHECK_ERR(type);
+    ctx.addContType(*type);
     return Ok{};
   }
   if (auto type = structtype(ctx)) {

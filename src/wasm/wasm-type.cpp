@@ -94,16 +94,20 @@ struct HeapTypeInfo {
   size_t recGroupIndex = 0;
   enum Kind {
     SignatureKind,
+    ContinuationKind,
     StructKind,
     ArrayKind,
   } kind;
   union {
     Signature signature;
+    Continuation continuation;
     Struct struct_;
     Array array;
   };
 
   HeapTypeInfo(Signature sig) : kind(SignatureKind), signature(sig) {}
+  HeapTypeInfo(Continuation continuation)
+    : kind(ContinuationKind), continuation(continuation) {}
   HeapTypeInfo(const Struct& struct_) : kind(StructKind), struct_(struct_) {}
   HeapTypeInfo(Struct&& struct_)
     : kind(StructKind), struct_(std::move(struct_)) {}
@@ -111,6 +115,7 @@ struct HeapTypeInfo {
   ~HeapTypeInfo();
 
   constexpr bool isSignature() const { return kind == SignatureKind; }
+  constexpr bool isContinuation() const { return kind == ContinuationKind; }
   constexpr bool isStruct() const { return kind == StructKind; }
   constexpr bool isArray() const { return kind == ArrayKind; }
   constexpr bool isData() const { return isStruct() || isArray(); }
@@ -124,6 +129,7 @@ struct SubTyper {
   bool isSubType(const Tuple& a, const Tuple& b);
   bool isSubType(const Field& a, const Field& b);
   bool isSubType(const Signature& a, const Signature& b);
+  bool isSubType(const Continuation& a, const Continuation& b);
   bool isSubType(const Struct& a, const Struct& b);
   bool isSubType(const Array& a, const Array& b);
 };
@@ -155,6 +161,7 @@ struct TypePrinter {
   std::ostream& print(const Tuple& tuple);
   std::ostream& print(const Field& field);
   std::ostream& print(const Signature& sig);
+  std::ostream& print(const Continuation& cont);
   std::ostream& print(const Struct& struct_,
                       const std::unordered_map<Index, Name>& fieldNames);
   std::ostream& print(const Array& array);
@@ -181,6 +188,7 @@ struct RecGroupHasher {
   size_t hash(const Tuple& tuple) const;
   size_t hash(const Field& field) const;
   size_t hash(const Signature& sig) const;
+  size_t hash(const Continuation& sig) const;
   size_t hash(const Struct& struct_) const;
   size_t hash(const Array& array) const;
 };
@@ -207,6 +215,7 @@ struct RecGroupEquator {
   bool eq(const Tuple& a, const Tuple& b) const;
   bool eq(const Field& a, const Field& b) const;
   bool eq(const Signature& a, const Signature& b) const;
+  bool eq(const Continuation& a, const Continuation& b) const;
   bool eq(const Struct& a, const Struct& b) const;
   bool eq(const Array& a, const Array& b) const;
 };
@@ -431,6 +440,8 @@ HeapType::BasicHeapType getBasicHeapSupertype(HeapType type) {
   switch (info->kind) {
     case HeapTypeInfo::SignatureKind:
       return HeapType::func;
+    case HeapTypeInfo::ContinuationKind:
+      WASM_UNREACHABLE("unexpected kind");
     case HeapTypeInfo::StructKind:
       return HeapType::struct_;
     case HeapTypeInfo::ArrayKind:
@@ -549,6 +560,9 @@ HeapTypeInfo::~HeapTypeInfo() {
   switch (kind) {
     case SignatureKind:
       signature.~Signature();
+      return;
+    case ContinuationKind:
+      continuation.~Continuation();
       return;
     case StructKind:
       struct_.~Struct();
@@ -1088,6 +1102,11 @@ HeapType::HeapType(Signature sig) {
     HeapType(globalRecGroupStore.insert(std::make_unique<HeapTypeInfo>(sig)));
 }
 
+HeapType::HeapType(Continuation continuation) {
+  new (this) HeapType(
+    globalRecGroupStore.insert(std::make_unique<HeapTypeInfo>(continuation)));
+}
+
 HeapType::HeapType(const Struct& struct_) {
 #ifndef NDEBUG
   for (const auto& field : struct_.fields) {
@@ -1135,6 +1154,14 @@ bool HeapType::isSignature() const {
     return false;
   } else {
     return getHeapTypeInfo(*this)->isSignature();
+  }
+}
+
+bool HeapType::isContinuation() const {
+  if (isBasic()) {
+    return false;
+  } else {
+    return getHeapTypeInfo(*this)->isContinuation();
   }
 }
 
@@ -1191,6 +1218,11 @@ bool HeapType::isOpen() const {
 Signature HeapType::getSignature() const {
   assert(isSignature());
   return getHeapTypeInfo(*this)->signature;
+}
+
+Continuation HeapType::getContinuation() const {
+  assert(isContinuation());
+  return getHeapTypeInfo(*this)->continuation;
 }
 
 const Struct& HeapType::getStruct() const {
@@ -1290,6 +1322,9 @@ HeapType::BasicHeapType HeapType::getBottom() const {
   switch (info->kind) {
     case HeapTypeInfo::SignatureKind:
       return nofunc;
+    case HeapTypeInfo::ContinuationKind:
+      // FIMXE(frank-emrich) use none here?
+      WASM_UNREACHABLE("not implemented");
     case HeapTypeInfo::StructKind:
     case HeapTypeInfo::ArrayKind:
       return none;
@@ -1624,6 +1659,11 @@ bool SubTyper::isSubType(const Signature& a, const Signature& b) {
   return isSubType(b.params, a.params) && isSubType(a.results, b.results);
 }
 
+bool SubTyper::isSubType(const Continuation& a, const Continuation& b) {
+  // FIXME(frank-emrich)
+  WASM_UNREACHABLE("isSubType not implemented for Continuation");
+}
+
 bool SubTyper::isSubType(const Struct& a, const Struct& b) {
   // There may be more fields on the left, but not fewer.
   if (a.fields.size() < b.fields.size()) {
@@ -1786,6 +1826,8 @@ std::ostream& TypePrinter::print(HeapType type) {
   }
   if (type.isSignature()) {
     print(type.getSignature());
+  } else if (type.isContinuation()) {
+    print(type.getContinuation());
   } else if (type.isStruct()) {
     print(type.getStruct(), names.fieldNames);
   } else if (type.isArray()) {
@@ -1851,6 +1893,12 @@ std::ostream& TypePrinter::print(const Signature& sig) {
     os << ' ';
     printPrefixed("result", sig.results);
   }
+  return os << ')';
+}
+
+std::ostream& TypePrinter::print(const Continuation& continuation) {
+  os << "(cont ";
+  printHeapTypeName(continuation.ht);
   return os << ')';
 }
 
@@ -1951,6 +1999,9 @@ size_t RecGroupHasher::hash(const HeapTypeInfo& info) const {
     case HeapTypeInfo::SignatureKind:
       hash_combine(digest, hash(info.signature));
       return digest;
+    case HeapTypeInfo::ContinuationKind:
+      hash_combine(digest, hash(info.continuation));
+      return digest;
     case HeapTypeInfo::StructKind:
       hash_combine(digest, hash(info.struct_));
       return digest;
@@ -1979,6 +2030,13 @@ size_t RecGroupHasher::hash(const Field& field) const {
 size_t RecGroupHasher::hash(const Signature& sig) const {
   size_t digest = hash(sig.params);
   hash_combine(digest, hash(sig.results));
+  return digest;
+}
+
+size_t RecGroupHasher::hash(const Continuation& continuation) const {
+  // FIXME(frank-emrich) just some random magic constant
+  size_t digest = 0xc0117;
+  hash_combine(digest, hash(continuation.ht));
   return digest;
 }
 
@@ -2077,6 +2135,8 @@ bool RecGroupEquator::eq(const HeapTypeInfo& a, const HeapTypeInfo& b) const {
   switch (a.kind) {
     case HeapTypeInfo::SignatureKind:
       return eq(a.signature, b.signature);
+    case HeapTypeInfo::ContinuationKind:
+      return eq(a.continuation, b.continuation);
     case HeapTypeInfo::StructKind:
       return eq(a.struct_, b.struct_);
     case HeapTypeInfo::ArrayKind:
@@ -2099,6 +2159,10 @@ bool RecGroupEquator::eq(const Field& a, const Field& b) const {
 
 bool RecGroupEquator::eq(const Signature& a, const Signature& b) const {
   return eq(a.params, b.params) && eq(a.results, b.results);
+}
+
+bool RecGroupEquator::eq(const Continuation& a, const Continuation& b) const {
+  return eq(a.ht, b.ht);
 }
 
 bool RecGroupEquator::eq(const Struct& a, const Struct& b) const {
@@ -2187,6 +2251,9 @@ void TypeGraphWalkerBase<Self>::scanHeapType(HeapType* ht) {
       taskList.push_back(Task::scan(&info->signature.results));
       taskList.push_back(Task::scan(&info->signature.params));
       break;
+    case HeapTypeInfo::ContinuationKind:
+      taskList.push_back(Task::scan(&info->continuation.ht));
+      break;
     case HeapTypeInfo::StructKind: {
       auto& fields = info->struct_.fields;
       for (auto field = fields.rbegin(); field != fields.rend(); ++field) {
@@ -2227,6 +2294,9 @@ struct TypeBuilder::Impl {
         case HeapTypeInfo::SignatureKind:
           info->signature = hti.signature;
           break;
+        case HeapTypeInfo::ContinuationKind:
+          info->continuation = hti.continuation;
+          break;
         case HeapTypeInfo::StructKind:
           info->struct_ = std::move(hti.struct_);
           break;
@@ -2263,6 +2333,11 @@ size_t TypeBuilder::size() { return impl->entries.size(); }
 void TypeBuilder::setHeapType(size_t i, Signature signature) {
   assert(i < size() && "index out of bounds");
   impl->entries[i].set(signature);
+}
+
+void TypeBuilder::setHeapType(size_t i, Continuation continuation) {
+  assert(i < size() && "index out of bounds");
+  impl->entries[i].set(continuation);
 }
 
 void TypeBuilder::setHeapType(size_t i, const Struct& struct_) {
@@ -2342,6 +2417,8 @@ bool isValidSupertype(const HeapTypeInfo& sub, const HeapTypeInfo& super) {
   switch (sub.kind) {
     case HeapTypeInfo::SignatureKind:
       return typer.isSubType(sub.signature, super.signature);
+    case HeapTypeInfo::ContinuationKind:
+      return typer.isSubType(sub.continuation, super.continuation);
     case HeapTypeInfo::StructKind:
       return typer.isSubType(sub.struct_, super.struct_);
     case HeapTypeInfo::ArrayKind:

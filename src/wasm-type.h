@@ -52,6 +52,7 @@ class Type;
 class HeapType;
 class RecGroup;
 struct Signature;
+struct Continuation;
 struct Field;
 struct Struct;
 struct Array;
@@ -344,6 +345,8 @@ public:
   // this signature.
   HeapType(Signature signature);
 
+  HeapType(Continuation cont);
+
   // Create a HeapType with the given structure. In equirecursive mode, this may
   // be the same as a previous HeapType created with the same contents. In
   // nominal mode, this will be a fresh type distinct from all previously
@@ -357,6 +360,7 @@ public:
   bool isFunction() const;
   bool isData() const;
   bool isSignature() const;
+  bool isContinuation() const;
   bool isStruct() const;
   bool isArray() const;
   bool isString() const;
@@ -364,6 +368,8 @@ public:
   bool isOpen() const;
 
   Signature getSignature() const;
+  Continuation getContinuation() const;
+
   const Struct& getStruct() const;
   Array getArray() const;
 
@@ -470,6 +476,12 @@ struct Signature {
   std::string toString() const;
 };
 
+struct Continuation {
+  Continuation(HeapType ht) : ht(ht) {}
+
+  HeapType ht;
+};
+
 struct Field {
   Type type;
   enum PackedType {
@@ -564,6 +576,7 @@ struct TypeBuilder {
 
   // Sets the heap type at index `i`. May only be called before `build`.
   void setHeapType(size_t i, Signature signature);
+  void setHeapType(size_t i, Continuation continuation);
   void setHeapType(size_t i, const Struct& struct_);
   void setHeapType(size_t i, Struct&& struct_);
   void setHeapType(size_t i, Array array);
@@ -632,6 +645,10 @@ struct TypeBuilder {
     operator HeapType() const { return builder.getTempHeapType(index); }
     Entry& operator=(Signature signature) {
       builder.setHeapType(index, signature);
+      return *this;
+    }
+    Entry& operator=(Continuation continuation) {
+      builder.setHeapType(index, continuation);
       return *this;
     }
     Entry& operator=(const Struct& struct_) {

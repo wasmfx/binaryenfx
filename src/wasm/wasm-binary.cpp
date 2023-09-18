@@ -287,6 +287,10 @@ void WasmBinaryWriter::writeTypes() {
           writeType(type);
         }
       }
+    } else if (type.isContinuation()) {
+      o << S32LEB(BinaryConsts::EncodedType::Cont);
+      o << S64LEB(
+        getTypeIndex(type.getContinuation().ht)); // TODO: Actually s33
     } else if (type.isStruct()) {
       o << S32LEB(BinaryConsts::EncodedType::Struct);
       auto fields = type.getStruct().fields;
@@ -1559,7 +1563,8 @@ void WasmBinaryWriter::writeHeapType(HeapType type) {
     }
   }
 
-  if (type.isSignature() || type.isStruct() || type.isArray()) {
+  if (type.isSignature() || type.isContinuation() || type.isStruct() ||
+      type.isArray()) {
     o << S64LEB(getTypeIndex(type)); // TODO: Actually s33
     return;
   }
@@ -2209,6 +2214,11 @@ void WasmBinaryReader::readTypes() {
                      builder.getTempTupleType(results));
   };
 
+  auto readContinuationDef = [&]() {
+    HeapType ht = WasmBinaryReader::getHeapType();
+    return Continuation(ht);
+  };
+
   auto readMutability = [&]() {
     switch (getU32LEB()) {
       case 0:
@@ -2281,6 +2291,8 @@ void WasmBinaryReader::readTypes() {
     }
     if (form == BinaryConsts::EncodedType::Func) {
       builder[i] = readSignatureDef();
+    } else if (form == BinaryConsts::EncodedType::Cont) {
+      builder[i] = readContinuationDef();
     } else if (form == BinaryConsts::EncodedType::Struct) {
       builder[i] = readStructDef();
     } else if (form == BinaryConsts::EncodedType::Array) {
