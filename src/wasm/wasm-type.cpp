@@ -368,6 +368,7 @@ template<typename Self> struct HeapTypeChildWalker : HeapTypeGraphWalker<Self> {
     } else {
       static_cast<Self*>(this)->noteChild(ht);
     }
+    isTopLevel = false;
   }
 
 private:
