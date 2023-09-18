@@ -18,6 +18,7 @@
 #include <array>
 #include <cassert>
 #include <map>
+#include <ostream>
 #include <shared_mutex>
 #include <sstream>
 #include <unordered_map>
@@ -359,6 +360,9 @@ template<typename Self> struct HeapTypeChildWalker : HeapTypeGraphWalker<Self> {
     HeapTypeGraphWalker<Self>::scanType(type);
   }
   void scanHeapType(HeapType* ht) {
+    if(ht->isContinuation()) {
+      std::cout << "HeapTypeChildWalker::scanHeapType: argument is HeapType " << *ht << std::endl;
+    }
     if (isTopLevel) {
       HeapTypeGraphWalker<Self>::scanHeapType(ht);
     } else {
@@ -1007,6 +1011,11 @@ bool Type::isSubType(Type left, Type right) {
 std::vector<HeapType> Type::getHeapTypeChildren() {
   HeapTypeChildCollector collector;
   collector.walkRoot(this);
+  std::cout << "Type::getHeapTypeChildren:: Getting children of heap type: " << this->toString() << std::endl;
+  for(auto& t : collector.children) {
+    std::cout << t.toString() << std::endl;
+  }
+  std::cout << "Done getting children " << std::endl;
   return collector.children;
 }
 
@@ -1374,7 +1383,12 @@ std::vector<Type> HeapType::getTypeChildren() const {
 
 std::vector<HeapType> HeapType::getHeapTypeChildren() const {
   HeapTypeChildCollector collector;
+  std::cout << "HeapType::getHeapTypeChildren: Getting children of heap type: " << this->toString() << std::endl;
   collector.walkRoot(const_cast<HeapType*>(this));
+  for(auto& t : collector.children) {
+    std::cout << t.toString() << std::endl;
+  }
+  std::cout << "Done getting children " << std::endl;
   return collector.children;
 }
 
