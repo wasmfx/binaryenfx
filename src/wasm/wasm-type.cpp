@@ -1489,6 +1489,8 @@ TypeNames DefaultTypeNameGenerator::getNames(HeapType type) {
     std::stringstream stream;
     if (type.isSignature()) {
       stream << "func." << funcCount++;
+    } else if (type.isContinuation()) {
+      stream << "cont." << contCount++;
     } else if (type.isStruct()) {
       stream << "struct." << structCount++;
     } else if (type.isArray()) {
@@ -1509,6 +1511,7 @@ template<typename T> static std::string genericToString(const T& t) {
 std::string Type::toString() const { return genericToString(*this); }
 std::string HeapType::toString() const { return genericToString(*this); }
 std::string Signature::toString() const { return genericToString(*this); }
+std::string Continuation::toString() const { return genericToString(*this); }
 std::string Struct::toString() const { return genericToString(*this); }
 std::string Array::toString() const { return genericToString(*this); }
 

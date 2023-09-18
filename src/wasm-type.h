@@ -477,9 +477,11 @@ struct Signature {
 };
 
 struct Continuation {
-  Continuation(HeapType ht) : ht(ht) {}
-
   HeapType ht;
+  Continuation(HeapType ht) : ht(ht) {}
+  bool operator==(const Continuation &other) const { return ht == other.ht; }
+  bool operator!=(const Continuation &other) const { return !(*this == other); }
+  std::string toString() const;
 };
 
 struct Field {
