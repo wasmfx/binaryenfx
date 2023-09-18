@@ -2216,6 +2216,12 @@ void WasmBinaryReader::readTypes() {
 
   auto readContinuationDef = [&]() {
     HeapType ht = WasmBinaryReader::getHeapType();
+    if (!ht.isSignature()) {
+      // FIXME(frank-emrich)
+      // This is more validation than parsing. But
+      // wasm-validate.cpp doesn't seem to validate type defitions?
+      throw ParseException("cont types must be built from function types");
+    }
     return Continuation(ht);
   };
 
