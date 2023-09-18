@@ -44,9 +44,8 @@ struct FeatureSet {
     ExtendedConst = 1 << 13,
     Strings = 1 << 14,
     MultiMemory = 1 << 15,
-    // FIXME(frank-emrich) Correct way to model dependencies on ref types and
-    // exceptions?
-    TypedContinuations = 1 << 16 | ExceptionHandling | ReferenceTypes,
+    // FIXME(frank-emrich) Model dependencies on ref types and exceptions?
+    TypedContinuations = 1 << 16,
     MVP = None,
     // Keep in sync with llvm default features:
     // https://github.com/llvm/llvm-project/blob/c7576cb89d6c95f03968076e902d3adfd1996577/clang/lib/Basic/Targets/WebAssembly.cpp#L150-L153
