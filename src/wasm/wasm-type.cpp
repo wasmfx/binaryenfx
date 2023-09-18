@@ -931,6 +931,8 @@ FeatureSet Type::getFeatures() const {
             if (sig.results.isTuple()) {
               feats |= FeatureSet::Multivalue;
             }
+          } else if (heapType->isContinuation()) {
+            feats |= FeatureSet::TypedContinuations;
           }
 
           // In addition, scan their non-ref children, to add dependencies on
@@ -1363,6 +1365,9 @@ std::vector<Type> HeapType::getTypeChildren() const {
       }
     }
     return children;
+  }
+  if (isContinuation()) {
+    return {};
   }
   WASM_UNREACHABLE("unexpected kind");
 }

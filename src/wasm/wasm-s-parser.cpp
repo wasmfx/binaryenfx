@@ -870,10 +870,31 @@ void SExpressionWasmBuilder::preParseHeapTypes(Element& module) {
   };
 
   auto parseContinuationDef = [&](Element& elem) {
-    // '(' 'cont' '(type' index ')' ')' | '(' 'cont' '(type' name ')' ')'
+    // '(' 'cont' index ')' | '(' 'cont' name ')'
 
-    HeapType ht = parseTypeRef(elem);
-    return Continuation(ht);
+    // TODO(frank-emrich) consolidate this with parseRefType lambda above
+    Element& referent = *elem[1];
+    auto name = referent.toString();
+    HeapType ft;
+    if (referent.dollared()) {
+      ft = builder[typeIndices[name]];
+    } else if (String::isNumber(name)) {
+      size_t index = parseIndex(referent);
+      if (index >= numTypes) {
+        throw ParseException("invalid type index", referent.line, referent.col);
+      }
+      ft = builder[index];
+    } else {
+      throw ParseException(
+        "Expected type name or index", referent.line, referent.col);
+    }
+
+    if (!ft.isSignature()) {
+      // FIXME(frank-emrich) Should we use isFunction and allow (cont func)?
+      throw ParseException(
+        "cont type must be created from func type", elem.line, elem.col);
+    }
+    return Continuation(ft);
   };
 
   // Parses a field, and notes the name if one is found.
