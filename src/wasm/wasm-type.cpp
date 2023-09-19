@@ -1270,6 +1270,8 @@ size_t HeapType::getDepth() const {
   if (!isBasic()) {
     if (isFunction()) {
       depth++;
+    } else if (isContinuation()) {
+      WASM_UNREACHABLE("TODO");
     } else if (isStruct()) {
       // specific struct types <: struct <: eq <: any
       depth += 3;
@@ -1335,8 +1337,7 @@ HeapType::BasicHeapType HeapType::getBottom() const {
     case HeapTypeInfo::SignatureKind:
       return nofunc;
     case HeapTypeInfo::ContinuationKind:
-      // FIMXE(frank-emrich) use none here?
-      WASM_UNREACHABLE("not implemented");
+      return none;
     case HeapTypeInfo::StructKind:
     case HeapTypeInfo::ArrayKind:
       return none;
