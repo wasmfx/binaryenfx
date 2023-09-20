@@ -2226,8 +2226,7 @@ MaybeResult<typename Ctx::SignatureT> functype(Ctx& ctx) {
 template<typename Ctx>
 MaybeResult<typename Ctx::ContinuationT> conttype(Ctx& ctx) {
   if (!ctx.in.takeSExprStart("cont"sv)) {
-
-    return ctx.in.err("expected cont");
+    return {};
   }
 
   auto x = typeidx(ctx);
