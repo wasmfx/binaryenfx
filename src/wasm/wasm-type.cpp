@@ -1106,6 +1106,7 @@ HeapType::HeapType(Signature sig) {
 }
 
 HeapType::HeapType(Continuation continuation) {
+  assert(!isTemp(continuation.ht) && "Leaking temporary type!");
   new (this) HeapType(
     globalRecGroupStore.insert(std::make_unique<HeapTypeInfo>(continuation)));
 }
@@ -1534,6 +1535,9 @@ std::ostream& operator<<(std::ostream& os, Tuple tuple) {
 }
 std::ostream& operator<<(std::ostream& os, Signature sig) {
   return TypePrinter(os).print(sig);
+}
+std::ostream& operator<<(std::ostream& os, Continuation cont) {
+  return TypePrinter(os).print(cont);
 }
 std::ostream& operator<<(std::ostream& os, Field field) {
   return TypePrinter(os).print(field);
@@ -2044,9 +2048,10 @@ size_t RecGroupHasher::hash(const Signature& sig) const {
 }
 
 size_t RecGroupHasher::hash(const Continuation& continuation) const {
-  // FIXME(frank-emrich) just some random magic constant
-  size_t digest = 0xc0117;
-  hash_combine(digest, hash(continuation.ht));
+  // We throw in a magic constant to distinguish (cont $foo) from $foo
+  size_t magic = 0xc0117;
+  size_t digest = hash(continuation.ht);
+  rehash(digest, magic);
   return digest;
 }
 

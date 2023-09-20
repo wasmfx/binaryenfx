@@ -479,8 +479,8 @@ struct Signature {
 struct Continuation {
   HeapType ht;
   Continuation(HeapType ht) : ht(ht) {}
-  bool operator==(const Continuation &other) const { return ht == other.ht; }
-  bool operator!=(const Continuation &other) const { return !(*this == other); }
+  bool operator==(const Continuation& other) const { return ht == other.ht; }
+  bool operator!=(const Continuation& other) const { return !(*this == other); }
   std::string toString() const;
 };
 
@@ -686,6 +686,7 @@ std::ostream& operator<<(std::ostream&, HeapType);
 std::ostream& operator<<(std::ostream&, HeapType::Printed);
 std::ostream& operator<<(std::ostream&, Tuple);
 std::ostream& operator<<(std::ostream&, Signature);
+std::ostream& operator<<(std::ostream&, Continuation);
 std::ostream& operator<<(std::ostream&, Field);
 std::ostream& operator<<(std::ostream&, Struct);
 std::ostream& operator<<(std::ostream&, Array);
@@ -702,6 +703,10 @@ public:
 template<> class hash<wasm::Signature> {
 public:
   size_t operator()(const wasm::Signature&) const;
+};
+template<> class hash<wasm::Continuation> {
+public:
+  size_t operator()(const wasm::Continuation&) const;
 };
 template<> class hash<wasm::Field> {
 public:

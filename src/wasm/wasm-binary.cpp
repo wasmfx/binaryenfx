@@ -289,8 +289,7 @@ void WasmBinaryWriter::writeTypes() {
       }
     } else if (type.isContinuation()) {
       o << S32LEB(BinaryConsts::EncodedType::Cont);
-      o << S64LEB(
-        getTypeIndex(type.getContinuation().ht)); // TODO: Actually s33
+      writeHeapType(type.getContinuation().ht);
     } else if (type.isStruct()) {
       o << S32LEB(BinaryConsts::EncodedType::Struct);
       auto fields = type.getStruct().fields;
@@ -2167,6 +2166,17 @@ void WasmBinaryReader::readTypes() {
   TypeBuilder builder(getU32LEB());
   BYN_TRACE("num: " << builder.size() << std::endl);
 
+  auto readHeapType = [&]() {
+    int64_t htCode = getS64LEB();
+    HeapType ht;
+    if (getBasicHeapType(htCode, ht)) {
+      return ht;
+    }
+    if (size_t(htCode) >= builder.size()) {
+      throwError("invalid type index: " + std::to_string(htCode));
+    }
+    return builder.getTempHeapType(size_t(htCode));
+  };
   auto makeType = [&](int32_t typeCode) {
     Type type;
     if (getBasicType(typeCode, type)) {
@@ -2179,22 +2189,19 @@ void WasmBinaryReader::readTypes() {
         auto nullability = typeCode == BinaryConsts::EncodedType::nullable
                              ? Nullable
                              : NonNullable;
-        int64_t htCode = getS64LEB(); // TODO: Actually s33
-        HeapType ht;
-        if (getBasicHeapType(htCode, ht)) {
+
+        HeapType ht = readHeapType();
+        if (ht.isBasic()) {
           return Type(ht, nullability);
         }
-        if (size_t(htCode) >= builder.size()) {
-          throwError("invalid type index: " + std::to_string(htCode));
-        }
-        return builder.getTempRefType(builder[size_t(htCode)], nullability);
+
+        return builder.getTempRefType(ht, nullability);
       }
       default:
         throwError("unexpected type index: " + std::to_string(typeCode));
     }
     WASM_UNREACHABLE("unexpected type");
   };
-
   auto readType = [&]() { return makeType(getS32LEB()); };
 
   auto readSignatureDef = [&]() {
@@ -2215,7 +2222,7 @@ void WasmBinaryReader::readTypes() {
   };
 
   auto readContinuationDef = [&]() {
-    HeapType ht = WasmBinaryReader::getHeapType();
+    HeapType ht = readHeapType();
     if (!ht.isSignature()) {
       // FIXME(frank-emrich)
       // This is more validation than parsing. But
