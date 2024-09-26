@@ -1146,10 +1146,11 @@ enum ASTNodes {
   Suspend = 0xe2,
   Resume = 0xe3,
   ResumeThrow = 0xe4,
-  Switch = 0xe5 // NOTE(dhil): the internal class is known as
-                // StackSwitch to avoid conflict with the existing
-                // 'switch table'.
-
+  Switch = 0xe5, // NOTE(dhil): the internal class is known as
+                 // StackSwitch to avoid conflict with the existing
+                 // 'switch table'.
+  OnLabel = 0x00, // (on $tag $label)
+  OnSwitch = 0x01 // (on $tag switch)
 };
 
 enum MemoryAccess {

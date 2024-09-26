@@ -1965,12 +1965,15 @@ public:
 class Resume : public SpecificExpression<Expression::ResumeId> {
 public:
   Resume(MixedArena& allocator)
-    : handlerTags(allocator), handlerBlocks(allocator), operands(allocator),
-      sentTypes(allocator) {}
+    : handlerTags(allocator), handlerBlocks(allocator), onTags(allocator),
+      operands(allocator), sentTypes(allocator) {}
 
   HeapType contType;
   ArenaVector<Name> handlerTags;
+  // Empty name (i.e. `Name()`) for switch tags.
   ArenaVector<Name> handlerBlocks;
+  // False if (on $tag $label) and true when (on $tag switch).
+  ArenaVector<bool> onTags;
 
   ExpressionList operands;
   Expression* cont;
@@ -1991,13 +1994,16 @@ public:
 class ResumeThrow : public SpecificExpression<Expression::ResumeThrowId> {
 public:
   ResumeThrow(MixedArena& allocator)
-    : handlerTags(allocator), handlerBlocks(allocator), operands(allocator),
-      sentTypes(allocator) {}
+    : handlerTags(allocator), handlerBlocks(allocator), onTags(allocator),
+      operands(allocator), sentTypes(allocator) {}
 
   HeapType contType;
   Name tag;
   ArenaVector<Name> handlerTags;
+  // Empty name (i.e. `Name()`) for switch tags.
   ArenaVector<Name> handlerBlocks;
+  // False if (on $tag $label) and true when (on $tag switch).
+  ArenaVector<bool> onTags;
 
   ExpressionList operands;
   Expression* cont;
@@ -2026,9 +2032,9 @@ public:
   ExpressionList operands;
   Expression* cont;
 
-  // When 'Module*' parameter is given, we populate the 'sentTypes' array, so
-  // that the types can be accessed in other analyses without accessing the
-  // module.
+  // We need access to the module to obtain the signature of the tag,
+  // which determines this node's type.
+  // If no module is given, then the type must have been set already.
   void finalize(Module* wasm = nullptr);
 };
 
