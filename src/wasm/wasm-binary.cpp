@@ -7960,16 +7960,25 @@ void WasmBinaryReader::visitResume(Resume* curr) {
   // valid until processNames ran.
   curr->handlerTags.resize(numHandlers);
   curr->handlerBlocks.resize(numHandlers);
+  curr->onTags.resize(numHandlers);
 
   for (size_t i = 0; i < numHandlers; i++) {
+    uint8_t code = getInt8();
     auto tagIndex = getU32LEB();
     auto tag = getTagName(tagIndex);
-
-    auto handlerIndex = getU32LEB();
-    auto handler = getBreakTarget(handlerIndex).name;
+    Name handler;
+    if (code == BinaryConsts::OnLabel) { // expect (on $tag $label)
+      auto handlerIndex = getU32LEB();
+      handler = getBreakTarget(handlerIndex).name;
+    } else if (code == BinaryConsts::OnSwitch) { // expect (on $tag switch)
+      handler = Name();
+    } else { // error
+      throwError("malformed on clause");
+    }
 
     curr->handlerTags[i] = tag;
     curr->handlerBlocks[i] = handler;
+    curr->onTags[i] = static_cast<uint8_t>(code); // 0x00 is false, 0x01 is true
 
     // We don't know the final name yet
     tagRefs[tagIndex].push_back(&curr->handlerTags[i]);
@@ -7988,11 +7997,69 @@ void WasmBinaryReader::visitResume(Resume* curr) {
 }
 
 void WasmBinaryReader::visitResumeThrow(ResumeThrow* curr) {
+  auto contTypeIndex = getU32LEB();
+  curr->contType = getTypeByIndex(contTypeIndex);
+  if (!curr->contType.isContinuation()) {
+    throwError("non-continuation type in resume_throw instruction " +
+               curr->contType.toString());
+  }
+  auto exnTagIndex = getU32LEB();
+  curr->tag = getTagName(exnTagIndex);
+  tagRefs[exnTagIndex].push_back(&curr->tag);
 
+  auto numHandlers = getU32LEB();
+
+  // We *must* bring the handlerTags vector to an appropriate size to ensure
+  // that we do not invalidate the pointers we add to tagRefs. They need to stay
+  // valid until processNames ran.
+  curr->handlerTags.resize(numHandlers);
+  curr->handlerBlocks.resize(numHandlers);
+  curr->onTags.resize(numHandlers);
+
+  for (size_t i = 0; i < numHandlers; i++) {
+    uint8_t code = getInt8();
+    auto tagIndex = getU32LEB();
+    auto tag = getTagName(tagIndex);
+    Name handler;
+    if (code == BinaryConsts::OnLabel) { // expect (on $tag $label)
+      auto handlerIndex = getU32LEB();
+      handler = getBreakTarget(handlerIndex).name;
+    } else if (code == BinaryConsts::OnSwitch) { // expect (on $tag switch)
+      handler = Name();
+    } else { // error
+      throwError("malformed on clause");
+    }
+
+    curr->handlerTags[i] = tag;
+    curr->handlerBlocks[i] = handler;
+    curr->onTags[i] = static_cast<uint8_t>(code); // 0x00 is false, 0x01 is true
+
+    // We don't know the final name yet
+    tagRefs[tagIndex].push_back(&curr->handlerTags[i]);
+  }
+
+  curr->cont = popNonVoidExpression();
+
+  auto numArgs =
+    curr->contType.getContinuation().type.getSignature().params.size();
+  curr->operands.resize(numArgs);
+  for (size_t i = 0; i < numArgs; i++) {
+    curr->operands[numArgs - i - 1] = popNonVoidExpression();
+  }
+
+  curr->finalize(&wasm);
 }
 
 void WasmBinaryReader::visitStackSwitch(StackSwitch* curr) {
-
+  auto contTypeIndex = getU32LEB();
+  curr->contType = getTypeByIndex(contTypeIndex);
+  if (!curr->contType.isContinuation()) {
+    throwError("non-continuation type in switch instruction " +
+               curr->contType.toString());
+  }
+  auto tagIndex = getU32LEB();
+  curr->tag = getTagName(tagIndex);
+  tagRefs[tagIndex].push_back(&curr->tag);
 }
 
 void WasmBinaryReader::throwError(std::string text) {
