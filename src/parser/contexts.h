@@ -840,12 +840,15 @@ struct NullInstrParserCtx {
     return Ok{};
   }
   template<typename HeapTypeT>
+  Result<> makeContNew(Index, const std::vector<Annotation>&, HeapTypeT) {
+    return Ok{};
+  }
+  template<typename HeapTypeT>
   Result<>
   makeContBind(Index, const std::vector<Annotation>&, HeapTypeT, HeapTypeT) {
     return Ok{};
   }
-  template<typename HeapTypeT>
-  Result<> makeContNew(Index, const std::vector<Annotation>&, HeapTypeT) {
+  Result<> makeSuspend(Index, const std::vector<Annotation>&, TagIdxT) {
     return Ok{};
   }
   template<typename HeapTypeT>
@@ -855,7 +858,17 @@ struct NullInstrParserCtx {
                       const TagLabelListT&) {
     return Ok{};
   }
-  Result<> makeSuspend(Index, const std::vector<Annotation>&, TagIdxT) {
+  template<typename HeapTypeT>
+  Result<> makeResumeThrow(Index,
+                           Index,
+                           const std::vector<Annotation>&,
+                           HeapTypeT,
+                           const TagLabelListT&) {
+    return Ok{};
+  }
+  template<typename HeapTypeT>
+  Result<> makeSwitch(Index,
+                      Index) {
     return Ok{};
   }
 };

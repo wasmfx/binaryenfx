@@ -54,7 +54,7 @@ const char* RelaxedSIMDFeature = "relaxed-simd";
 const char* ExtendedConstFeature = "extended-const";
 const char* StringsFeature = "strings";
 const char* MultiMemoryFeature = "multimemory";
-const char* TypedContinuationsFeature = "typed-continuations";
+const char* StackSwitchingFeature = "stack-switching";
 const char* SharedEverythingFeature = "shared-everything";
 const char* FP16Feature = "fp16";
 } // namespace CustomSections
@@ -1364,6 +1364,14 @@ void StringSliceWTF::finalize() {
   }
 }
 
+void ContNew::finalize() {
+  if (func->type == Type::unreachable) {
+    type = Type::unreachable;
+  } else {
+    type = Type(contType, NonNullable);
+  }
+}
+
 void ContBind::finalize() {
   if (cont->type == Type::unreachable) {
     type = Type::unreachable;
@@ -1372,11 +1380,10 @@ void ContBind::finalize() {
   }
 }
 
-void ContNew::finalize() {
-  if (func->type == Type::unreachable) {
-    type = Type::unreachable;
-  } else {
-    type = Type(contType, NonNullable);
+void Suspend::finalize(Module* wasm) {
+  if (!handleUnreachableOperands(this) && wasm) {
+    auto tag = wasm->getTag(this->tag);
+    type = tag->sig.results;
   }
 }
 
@@ -1433,12 +1440,25 @@ void Resume::finalize(Module* wasm) {
   populateResumeSentTypes(this, wasm);
 }
 
-void Suspend::finalize(Module* wasm) {
+void ResumeThrow::finalize(Module* wasm) {
+  if (cont->type == Type::unreachable) {
+    type = Type::unreachable;
+  } else if (!handleUnreachableOperands(this)) {
+    const Signature& contSig =
+      this->contType.getContinuation().type.getSignature();
+    type = contSig.results;
+  }
+
+  populateResumeSentTypes(nullptr, wasm); // TODO(dhil): FIXME
+}
+
+void StackSwitch::finalize(Module* wasm) {
   if (!handleUnreachableOperands(this) && wasm) {
     auto tag = wasm->getTag(this->tag);
     type = tag->sig.results;
   }
 }
+
 
 size_t Function::getNumParams() { return getParams().size(); }
 
