@@ -1897,6 +1897,18 @@ Result<> IRBuilder::makeStringSliceWTF() {
   return Ok{};
 }
 
+Result<> IRBuilder::makeContNew(HeapType ct) {
+  if (!ct.isContinuation()) {
+    return Err{"expected continuation type"};
+  }
+  ContNew curr;
+  curr.contType = ct;
+  CHECK_ERR(visitContNew(&curr));
+
+  push(builder.makeContNew(ct, curr.func));
+  return Ok{};
+}
+
 Result<> IRBuilder::makeContBind(HeapType contTypeBefore,
                                  HeapType contTypeAfter) {
   if (!contTypeBefore.isContinuation() || !contTypeAfter.isContinuation()) {
@@ -1924,15 +1936,14 @@ Result<> IRBuilder::makeContBind(HeapType contTypeBefore,
   return Ok{};
 }
 
-Result<> IRBuilder::makeContNew(HeapType ct) {
-  if (!ct.isContinuation()) {
-    return Err{"expected continuation type"};
-  }
-  ContNew curr;
-  curr.contType = ct;
-  CHECK_ERR(visitContNew(&curr));
+Result<> IRBuilder::makeSuspend(Name tag) {
+  Suspend curr(wasm.allocator);
+  curr.tag = tag;
+  curr.operands.resize(wasm.getTag(tag)->sig.params.size());
+  CHECK_ERR(visitSuspend(&curr));
 
-  push(builder.makeContNew(ct, curr.func));
+  std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
+  push(builder.makeSuspend(tag, operands));
   return Ok{};
 }
 
@@ -1959,14 +1970,11 @@ Result<> IRBuilder::makeResume(HeapType ct,
   return Ok{};
 }
 
-Result<> IRBuilder::makeSuspend(Name tag) {
-  Suspend curr(wasm.allocator);
-  curr.tag = tag;
-  curr.operands.resize(wasm.getTag(tag)->sig.params.size());
-  CHECK_ERR(visitSuspend(&curr));
+Result<> IRBuilder::makeResumeThrow(HeapType ct, Name tag, const std::vector<Name>& tags, const std::vector<Index>& labels) {
+  return Ok{};
+}
 
-  std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
-  push(builder.makeSuspend(tag, operands));
+Result<> IRBuilder::makeStackSwitch(HeapType ct, Name tag) {
   return Ok{};
 }
 

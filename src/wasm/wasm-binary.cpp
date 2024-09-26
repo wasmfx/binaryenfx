@@ -1347,8 +1347,8 @@ void WasmBinaryWriter::writeFeaturesSection() {
         return BinaryConsts::CustomSections::StringsFeature;
       case FeatureSet::MultiMemory:
         return BinaryConsts::CustomSections::MultiMemoryFeature;
-      case FeatureSet::TypedContinuations:
-        return BinaryConsts::CustomSections::TypedContinuationsFeature;
+      case FeatureSet::StackSwitching:
+        return BinaryConsts::CustomSections::StackSwitchingFeature;
       case FeatureSet::SharedEverything:
         return BinaryConsts::CustomSections::SharedEverythingFeature;
       case FeatureSet::FP16:
@@ -3865,8 +3865,8 @@ void WasmBinaryReader::readFeatures(size_t payloadLen) {
     } else if (name == BinaryConsts::CustomSections::MultiMemoryFeature) {
       feature = FeatureSet::MultiMemory;
     } else if (name ==
-               BinaryConsts::CustomSections::TypedContinuationsFeature) {
-      feature = FeatureSet::TypedContinuations;
+               BinaryConsts::CustomSections::StackSwitchingFeature) {
+      feature = FeatureSet::StackSwitching;
     } else if (name == BinaryConsts::CustomSections::SharedEverythingFeature) {
       feature = FeatureSet::SharedEverything;
     } else if (name == BinaryConsts::CustomSections::FP16Feature) {
@@ -4133,22 +4133,30 @@ BinaryConsts::ASTNodes WasmBinaryReader::readExpression(Expression*& curr) {
       visitCallRef(call);
       break;
     }
-    case BinaryConsts::ContBind: {
-      visitContBind((curr = allocator.alloc<ContBind>())->cast<ContBind>());
-      break;
-    }
     case BinaryConsts::ContNew: {
       auto contNew = allocator.alloc<ContNew>();
       curr = contNew;
       visitContNew(contNew);
       break;
     }
-    case BinaryConsts::Resume: {
-      visitResume((curr = allocator.alloc<Resume>())->cast<Resume>());
+    case BinaryConsts::ContBind: {
+      visitContBind((curr = allocator.alloc<ContBind>())->cast<ContBind>());
       break;
     }
     case BinaryConsts::Suspend: {
       visitSuspend((curr = allocator.alloc<Suspend>())->cast<Suspend>());
+      break;
+    }
+    case BinaryConsts::Resume: {
+      visitResume((curr = allocator.alloc<Resume>())->cast<Resume>());
+      break;
+    }
+    case BinaryConsts::ResumeThrow: {
+      visitResumeThrow((curr = allocator.alloc<ResumeThrow>())->cast<ResumeThrow>());
+      break;
+    }
+    case BinaryConsts::Switch: {
+      visitStackSwitch((curr = allocator.alloc<StackSwitch>())->cast<StackSwitch>());
       break;
     }
     case BinaryConsts::AtomicPrefix: {
@@ -7870,6 +7878,19 @@ void WasmBinaryReader::visitRefAs(RefAs* curr, uint8_t code) {
   curr->finalize();
 }
 
+void WasmBinaryReader::visitContNew(ContNew* curr) {
+
+  auto contTypeIndex = getU32LEB();
+  curr->contType = getTypeByIndex(contTypeIndex);
+  if (!curr->contType.isContinuation()) {
+    throwError("non-continuation type in cont.new instruction " +
+               curr->contType.toString());
+  }
+
+  curr->func = popNonVoidExpression();
+  curr->finalize();
+}
+
 void WasmBinaryReader::visitContBind(ContBind* curr) {
 
   auto contTypeBeforeIndex = getU32LEB();
@@ -7906,17 +7927,23 @@ void WasmBinaryReader::visitContBind(ContBind* curr) {
   curr->finalize();
 }
 
-void WasmBinaryReader::visitContNew(ContNew* curr) {
+void WasmBinaryReader::visitSuspend(Suspend* curr) {
 
-  auto contTypeIndex = getU32LEB();
-  curr->contType = getTypeByIndex(contTypeIndex);
-  if (!curr->contType.isContinuation()) {
-    throwError("non-continuation type in cont.new instruction " +
-               curr->contType.toString());
+  auto tagIndex = getU32LEB();
+  if (tagIndex >= wasm.tags.size()) {
+    throwError("bad tag index");
+  }
+  auto* tag = wasm.tags[tagIndex].get();
+  curr->tag = tag->name;
+  tagRefs[tagIndex].push_back(&curr->tag);
+
+  auto numArgs = tag->sig.params.size();
+  curr->operands.resize(numArgs);
+  for (size_t i = 0; i < numArgs; i++) {
+    curr->operands[numArgs - i - 1] = popNonVoidExpression();
   }
 
-  curr->func = popNonVoidExpression();
-  curr->finalize();
+  curr->finalize(&wasm);
 }
 
 void WasmBinaryReader::visitResume(Resume* curr) {
@@ -7962,23 +7989,12 @@ void WasmBinaryReader::visitResume(Resume* curr) {
   curr->finalize(&wasm);
 }
 
-void WasmBinaryReader::visitSuspend(Suspend* curr) {
+void WasmBinaryReader::visitResumeThrow(ResumeThrow* curr) {
 
-  auto tagIndex = getU32LEB();
-  if (tagIndex >= wasm.tags.size()) {
-    throwError("bad tag index");
-  }
-  auto* tag = wasm.tags[tagIndex].get();
-  curr->tag = tag->name;
-  tagRefs[tagIndex].push_back(&curr->tag);
+}
 
-  auto numArgs = tag->sig.params.size();
-  curr->operands.resize(numArgs);
-  for (size_t i = 0; i < numArgs; i++) {
-    curr->operands[numArgs - i - 1] = popNonVoidExpression();
-  }
+void WasmBinaryReader::visitStackSwitch(StackSwitch* curr) {
 
-  curr->finalize(&wasm);
 }
 
 void WasmBinaryReader::throwError(std::string text) {

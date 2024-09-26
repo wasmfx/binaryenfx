@@ -2417,6 +2417,15 @@ Result<> makeStringSliceWTF(Ctx& ctx,
   return ctx.makeStringSliceWTF(pos, annotations);
 }
 
+template<typename Ctx>
+Result<>
+makeContNew(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
+  auto type = typeidx(ctx);
+  CHECK_ERR(type);
+
+  return ctx.makeContNew(pos, annotations, *type);
+}
+
 // contbind ::= 'cont.bind' typeidx typeidx
 template<typename Ctx>
 Result<>
@@ -2432,11 +2441,11 @@ makeContBind(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
 
 template<typename Ctx>
 Result<>
-makeContNew(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
-  auto type = typeidx(ctx);
-  CHECK_ERR(type);
+makeSuspend(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
+  auto tag = tagidx(ctx);
+  CHECK_ERR(tag);
 
-  return ctx.makeContNew(pos, annotations, *type);
+  return ctx.makeSuspend(pos, annotations, *tag);
 }
 
 // resume ::= 'resume' typeidx ('(' 'on' tagidx labelidx ')')*
@@ -2461,13 +2470,24 @@ makeResume(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
   return ctx.makeResume(pos, annotations, *type, tagLabels);
 }
 
+// resume_throw ::= 'resume_throw' typeidx tagidx ('(' 'on' tagidx labelidx ')')*
 template<typename Ctx>
 Result<>
-makeSuspend(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
-  auto tag = tagidx(ctx);
-  CHECK_ERR(tag);
+makeResumeThrow(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
+  auto type = typeidx(ctx);
+  CHECK_ERR(type);
 
-  return ctx.makeSuspend(pos, annotations, *tag);
+  return Ok{};
+}
+
+// switch ::= 'switch' typeidx tagidx
+template<typename Ctx>
+Result<>
+makeSwitch(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
+  auto type = typeidx(ctx);
+  CHECK_ERR(type);
+
+  return Ok{};
 }
 
 // =======
