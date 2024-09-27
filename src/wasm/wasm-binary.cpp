@@ -7973,12 +7973,12 @@ void WasmBinaryReader::visitResume(Resume* curr) {
     } else if (code == BinaryConsts::OnSwitch) { // expect (on $tag switch)
       handler = Name();
     } else { // error
-      throwError("malformed on clause");
+      throwError("ON opcode expected");
     }
 
     curr->handlerTags[i] = tag;
     curr->handlerBlocks[i] = handler;
-    curr->onTags[i] = static_cast<uint8_t>(code); // 0x00 is false, 0x01 is true
+    curr->onTags[i] = static_cast<bool>(code); // 0x00 is false, 0x01 is true
 
     // We don't know the final name yet
     tagRefs[tagIndex].push_back(&curr->handlerTags[i]);
@@ -8004,7 +8004,8 @@ void WasmBinaryReader::visitResumeThrow(ResumeThrow* curr) {
                curr->contType.toString());
   }
   auto exnTagIndex = getU32LEB();
-  curr->tag = getTagName(exnTagIndex);
+  auto* exnTag = wasm.tags[exnTagIndex].get();
+  curr->tag = exnTag->name;
   tagRefs[exnTagIndex].push_back(&curr->tag);
 
   auto numHandlers = getU32LEB();
@@ -8027,12 +8028,12 @@ void WasmBinaryReader::visitResumeThrow(ResumeThrow* curr) {
     } else if (code == BinaryConsts::OnSwitch) { // expect (on $tag switch)
       handler = Name();
     } else { // error
-      throwError("malformed on clause");
+      throwError("ON opcode expected");
     }
 
     curr->handlerTags[i] = tag;
     curr->handlerBlocks[i] = handler;
-    curr->onTags[i] = static_cast<uint8_t>(code); // 0x00 is false, 0x01 is true
+    curr->onTags[i] = static_cast<bool>(code); // 0x00 is false, 0x01 is true
 
     // We don't know the final name yet
     tagRefs[tagIndex].push_back(&curr->handlerTags[i]);
@@ -8040,8 +8041,7 @@ void WasmBinaryReader::visitResumeThrow(ResumeThrow* curr) {
 
   curr->cont = popNonVoidExpression();
 
-  auto numArgs =
-    curr->contType.getContinuation().type.getSignature().params.size();
+  auto numArgs = exnTag->sig.params.size();
   curr->operands.resize(numArgs);
   for (size_t i = 0; i < numArgs; i++) {
     curr->operands[numArgs - i - 1] = popNonVoidExpression();
@@ -8058,8 +8058,21 @@ void WasmBinaryReader::visitStackSwitch(StackSwitch* curr) {
                curr->contType.toString());
   }
   auto tagIndex = getU32LEB();
-  curr->tag = getTagName(tagIndex);
+  auto* tag = wasm.tags[tagIndex].get();
+  curr->tag = tag->name;
   tagRefs[tagIndex].push_back(&curr->tag);
+
+    curr->cont = popNonVoidExpression();
+
+  auto numArgs =
+    curr->contType.getContinuation().type.getSignature().params.size();
+  if (numArgs < 1) {
+    throwError("switch requires a higher order continuation argument");
+  }
+  curr->operands.resize(numArgs - 1);
+  for (size_t i = 0; i < numArgs; i++) {
+    curr->operands[numArgs - i - 1] = popNonVoidExpression();
+  }
 }
 
 void WasmBinaryReader::throwError(std::string text) {
