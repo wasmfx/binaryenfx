@@ -2032,9 +2032,7 @@ public:
   ExpressionList operands;
   Expression* cont;
 
-  // We need access to the module to obtain the signature of the tag,
-  // which determines this node's type.
-  // If no module is given, then the type must have been set already.
+  // We need access to the module to obtain the signature of the tag.
   void finalize(Module* wasm = nullptr);
 };
 
