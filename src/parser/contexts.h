@@ -860,15 +860,14 @@ struct NullInstrParserCtx {
   }
   template<typename HeapTypeT>
   Result<> makeResumeThrow(Index,
-                           Index,
                            const std::vector<Annotation>&,
                            HeapTypeT,
+                           TagIdxT,
                            const TagLabelListT&) {
     return Ok{};
   }
   template<typename HeapTypeT>
-  Result<> makeSwitch(Index,
-                      Index) {
+  Result<> makeStackSwitch(Index, const std::vector<Annotation>&, HeapTypeT, Name) {
     return Ok{};
   }
 };
@@ -2606,6 +2605,12 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
     return withLoc(pos, irBuilder.makeStringSliceWTF());
   }
 
+  Result<> makeContNew(Index pos,
+                       const std::vector<Annotation>& annotations,
+                       HeapType type) {
+    return withLoc(pos, irBuilder.makeContNew(type));
+  }
+
   Result<> makeContBind(Index pos,
                         const std::vector<Annotation>& annotations,
                         HeapType contTypeBefore,
@@ -2613,10 +2618,9 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
     return withLoc(pos, irBuilder.makeContBind(contTypeBefore, contTypeAfter));
   }
 
-  Result<> makeContNew(Index pos,
-                       const std::vector<Annotation>& annotations,
-                       HeapType type) {
-    return withLoc(pos, irBuilder.makeContNew(type));
+  Result<>
+  makeSuspend(Index pos, const std::vector<Annotation>& annotations, Name tag) {
+    return withLoc(pos, irBuilder.makeSuspend(tag));
   }
 
   Result<> makeResume(Index pos,
@@ -2634,10 +2638,29 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
     return withLoc(pos, irBuilder.makeResume(type, tags, labels));
   }
 
-  Result<>
-  makeSuspend(Index pos, const std::vector<Annotation>& annotations, Name tag) {
-    return withLoc(pos, irBuilder.makeSuspend(tag));
+  Result<> makeResumeThrow(Index pos,
+                           const std::vector<Annotation>& annotations,
+                           HeapType type,
+                           Name tag,
+                           const TagLabelListT& tagLabels) {
+    std::vector<Name> tags;
+    std::vector<Index> labels;
+    tags.reserve(tagLabels.size());
+    labels.reserve(tagLabels.size());
+    for (auto& [tag, label] : tagLabels) {
+      tags.push_back(tag);
+      labels.push_back(label);
+    }
+    return withLoc(pos, irBuilder.makeResumeThrow(type, tag, tags, labels));
   }
+
+  Result<> makeStackSwitch(Index pos,
+                           const std::vector<Annotation>& annotations,
+                           HeapType type,
+                           Name tag) {
+    return withLoc(pos, irBuilder.makeStackSwitch(type, tag));
+  }
+
 };
 
 } // namespace wasm::WATParser
