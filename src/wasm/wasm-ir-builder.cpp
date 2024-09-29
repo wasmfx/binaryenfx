@@ -1971,6 +1971,24 @@ Result<> IRBuilder::makeResume(HeapType ct,
 }
 
 Result<> IRBuilder::makeResumeThrow(HeapType ct, Name tag, const std::vector<Name>& tags, const std::vector<Index>& labels) {
+  if (!ct.isContinuation()) {
+    return Err{"expected continuation type"};
+  }
+  ResumeThrow curr(wasm.allocator);
+  curr.contType = ct;
+  curr.tag = tag;
+  curr.operands.resize(wasm.getTag(tag)->sig.params.size());
+  CHECK_ERR(visitResumeThrow(&curr));
+
+  std::vector<Name> labelNames;
+  labelNames.reserve(labels.size());
+  for (auto label : labels) {
+    auto name = getLabelName(label);
+    CHECK_ERR(name);
+    labelNames.push_back(*name);
+  }
+  std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
+  push(builder.makeResumeThrow(ct, tag, tags, labelNames, operands, curr.cont));
   return Ok{};
 }
 

@@ -602,7 +602,7 @@ instructions = [
     ("suspend",              "makeSuspend()"),
     ("resume",               "makeResume()"),
     ("resume_throw",         "makeResumeThrow()"),
-    ("switch",               "makeSwitch()"),
+    ("switch",               "makeStackSwitch()"),
     # GC
     ("ref.i31",              "makeRefI31(Unshared)"),
     ("ref.i31_shared",       "makeRefI31(Shared)"),

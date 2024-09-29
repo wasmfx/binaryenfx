@@ -297,13 +297,17 @@ Result<> makeStringWTF16Get(Ctx&, Index, const std::vector<Annotation>&);
 template<typename Ctx>
 Result<> makeStringSliceWTF(Ctx&, Index, const std::vector<Annotation>&);
 template<typename Ctx>
+Result<> makeContNew(Ctx*, Index, const std::vector<Annotation>&);
+template<typename Ctx>
 Result<> makeContBind(Ctx&, Index, const std::vector<Annotation>&);
 template<typename Ctx>
-Result<> makeContNew(Ctx*, Index, const std::vector<Annotation>&);
+Result<> makeSuspend(Ctx&, Index, const std::vector<Annotation>&);
 template<typename Ctx>
 Result<> makeResume(Ctx&, Index, const std::vector<Annotation>&);
 template<typename Ctx>
-Result<> makeSuspend(Ctx&, Index, const std::vector<Annotation>&);
+Result<> makeResumeThrow(Ctx&, Index, const std::vector<Annotation>&);
+template<typename Ctx>
+Result<> makeStackSwitch(Ctx&, Index, const std::vector<Annotation>&);
 
 template<typename Ctx>
 Result<> ignore(Ctx&, Index, const std::vector<Annotation>&) {
@@ -2448,12 +2452,40 @@ makeSuspend(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
   return ctx.makeSuspend(pos, annotations, *tag);
 }
 
-// resume ::= 'resume' typeidx ('(' 'on' tagidx labelidx ')')*
+// resume ::= 'resume' typeidx ('(' 'on' tagidx labelidx | 'on' tagidx switch ')')*
 template<typename Ctx>
 Result<>
 makeResume(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
   auto type = typeidx(ctx);
   CHECK_ERR(type);
+
+  auto tagLabels = ctx.makeTagLabelList();
+  while (ctx.in.takeSExprStart("on"sv)) {
+    auto tag = tagidx(ctx);
+    CHECK_ERR(tag);
+    if (ctx.in.peekKeyword("switch"sv)) {
+      // TODO
+    } else {
+      auto label = labelidx(ctx);
+      CHECK_ERR(label);
+      ctx.appendTagLabel(tagLabels, *tag, *label);
+    }
+    if (!ctx.in.takeRParen()) {
+      return ctx.in.err("expected ')' at end of handler clause");
+    }
+  }
+
+  return ctx.makeResume(pos, annotations, *type, tagLabels);
+}
+
+// resume_throw ::= 'resume_throw' typeidx tagidx ('(' 'on' tagidx labelidx | 'on' tagidx switch ')')*
+template<typename Ctx>
+Result<>
+makeResumeThrow(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
+  auto type = typeidx(ctx);
+  CHECK_ERR(type);
+  auto exnTag = tagidx(ctx);
+  CHECK_ERR(exnTag);
 
   auto tagLabels = ctx.makeTagLabelList();
   while (ctx.in.takeSExprStart("on"sv)) {
@@ -2467,25 +2499,17 @@ makeResume(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
     }
   }
 
-  return ctx.makeResume(pos, annotations, *type, tagLabels);
-}
-
-// resume_throw ::= 'resume_throw' typeidx tagidx ('(' 'on' tagidx labelidx ')')*
-template<typename Ctx>
-Result<>
-makeResumeThrow(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
-  auto type = typeidx(ctx);
-  CHECK_ERR(type);
-
-  return Ok{};
+  return ctx.makeResumeThrow(pos, annotations, *type, *exnTag, tagLabels);
 }
 
 // switch ::= 'switch' typeidx tagidx
 template<typename Ctx>
 Result<>
-makeSwitch(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
+makeStackSwitch(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
   auto type = typeidx(ctx);
   CHECK_ERR(type);
+  auto tag = tagidx(ctx);
+  CHECK_ERR(tag);
 
   return Ok{};
 }
