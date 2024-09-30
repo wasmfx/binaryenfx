@@ -291,8 +291,8 @@ class FeatureValidationTest(utils.BinaryenTestCase):
         )
         '''
         self.check_stack_switching(module,
-                                       'Tags with result types require stack '
-                                       'switching feature [--enable-stack-switching]')
+                                   'Tags with result types require stack '
+                                   'switching feature [--enable-stack-switching]')
 
     def test_cont_type(self):
         module = '''
