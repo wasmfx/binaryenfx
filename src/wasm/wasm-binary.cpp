@@ -8064,13 +8064,12 @@ void WasmBinaryReader::visitStackSwitch(StackSwitch* curr) {
   curr->tag = tag->name;
   tagRefs[tagIndex].push_back(&curr->tag);
 
-    curr->cont = popNonVoidExpression();
-
   auto numArgs =
     curr->contType.getContinuation().type.getSignature().params.size();
   if (numArgs < 1) {
     throwError("switch requires a higher order continuation argument");
   }
+  curr->cont = popNonVoidExpression();
   curr->operands.resize(numArgs - 1);
   for (size_t i = 0; i < numArgs; i++) {
     curr->operands[numArgs - i - 1] = popNonVoidExpression();

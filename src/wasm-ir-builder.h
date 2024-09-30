@@ -223,11 +223,13 @@ public:
   [[nodiscard]] Result<> makeSuspend(Name tag);
   [[nodiscard]] Result<> makeResume(HeapType ct,
                                     const std::vector<Name>& tags,
-                                    const std::vector<Index>& labels);
+                                    const std::vector<Index>& labels,
+                                    const std::vector<bool>& onTags);
   [[nodiscard]] Result<> makeResumeThrow(HeapType ct,
                                          Name tag,
                                          const std::vector<Name>& tags,
-                                         const std::vector<Index>& labels);
+                                         const std::vector<Index>& labels,
+                                         const std::vector<bool>& onTags);
   [[nodiscard]] Result<> makeStackSwitch(HeapType ct,
                                          Name tag);
 

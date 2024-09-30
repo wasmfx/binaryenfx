@@ -1949,7 +1949,8 @@ Result<> IRBuilder::makeSuspend(Name tag) {
 
 Result<> IRBuilder::makeResume(HeapType ct,
                                const std::vector<Name>& tags,
-                               const std::vector<Index>& labels) {
+                               const std::vector<Index>& labels,
+                               const std::vector<bool>& onTags) {
   if (!ct.isContinuation()) {
     return Err{"expected continuation type"};
   }
@@ -1960,17 +1961,21 @@ Result<> IRBuilder::makeResume(HeapType ct,
 
   std::vector<Name> labelNames;
   labelNames.reserve(labels.size());
-  for (auto label : labels) {
-    auto name = getLabelName(label);
-    CHECK_ERR(name);
-    labelNames.push_back(*name);
+  for (size_t i = 0; i < labels.size(); i++) {
+    if (onTags[i]) {
+      labelNames.push_back(Name());
+    } else {
+      auto name = getLabelName(labels[i]);
+      CHECK_ERR(name);
+      labelNames.push_back(*name);
+    }
   }
   std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
-  push(builder.makeResume(ct, tags, labelNames, operands, curr.cont));
+  push(builder.makeResume(ct, tags, labelNames, onTags, operands, curr.cont));
   return Ok{};
 }
 
-Result<> IRBuilder::makeResumeThrow(HeapType ct, Name tag, const std::vector<Name>& tags, const std::vector<Index>& labels) {
+Result<> IRBuilder::makeResumeThrow(HeapType ct, Name tag, const std::vector<Name>& tags, const std::vector<Index>& labels, const std::vector<bool>& onTags) {
   if (!ct.isContinuation()) {
     return Err{"expected continuation type"};
   }
@@ -1982,17 +1987,38 @@ Result<> IRBuilder::makeResumeThrow(HeapType ct, Name tag, const std::vector<Nam
 
   std::vector<Name> labelNames;
   labelNames.reserve(labels.size());
-  for (auto label : labels) {
-    auto name = getLabelName(label);
-    CHECK_ERR(name);
-    labelNames.push_back(*name);
+  for (size_t i = 0; i < labels.size(); i++) {
+    if (onTags[i]) {
+      labelNames.push_back(Name());
+    } else {
+      auto name = getLabelName(labels[i]);
+      CHECK_ERR(name);
+      labelNames.push_back(*name);
+    }
   }
   std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
-  push(builder.makeResumeThrow(ct, tag, tags, labelNames, operands, curr.cont));
+  push(builder.makeResumeThrow(ct, tag, tags, labelNames, onTags, operands, curr.cont));
   return Ok{};
 }
 
 Result<> IRBuilder::makeStackSwitch(HeapType ct, Name tag) {
+  if (!ct.isContinuation()) {
+    return Err{"expected continuation type"};
+  }
+  StackSwitch curr(wasm.allocator);
+  curr.contType = ct;
+  curr.tag = tag;
+  auto nparams = ct.getContinuation().type.getSignature().params.size();
+  if (nparams < 1) {
+    return Err{"arity mismatch: the continuation argument must have, at least, unary arity"};
+  }
+  curr.operands.resize(nparams - 1); // the continuation argument of
+                                     // the continuation is synthetic,
+                                     // i.e. it is provided by the
+                                     // runtime.
+  CHECK_ERR(visitStackSwitch(&curr));
+  std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
+  push(builder.makeStackSwitch(ct, tag, operands, curr.cont));
   return Ok{};
 }
 
