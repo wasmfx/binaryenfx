@@ -2455,7 +2455,11 @@ struct PrintExpressionContents
       printMedium(o, "on ");
       curr->handlerTags[i].print(o);
       o << ' ';
-      curr->handlerBlocks[i].print(o);
+      if (curr->onTags[i]) {
+        o << "switch";
+      } else {
+        curr->handlerBlocks[i].print(o);
+      }
       o << ')';
     }
   }
@@ -2472,7 +2476,11 @@ struct PrintExpressionContents
       printMedium(o, "on ");
       curr->handlerTags[i].print(o);
       o << ' ';
-      curr->handlerBlocks[i].print(o);
+      if (curr->onTags[i]) {
+        o << "switch";
+      } else {
+        curr->handlerBlocks[i].print(o);
+      }
       o << ')';
     }
   }
@@ -2851,7 +2859,7 @@ void PrintSExpression::visitTryTable(TryTable* curr) {
 }
 
 void PrintSExpression::visitResume(Resume* curr) {
-  controlFlowDepth++;
+  //controlFlowDepth++;
   o << '(';
   printExpressionContents(curr);
 
@@ -2863,12 +2871,12 @@ void PrintSExpression::visitResume(Resume* curr) {
 
   printFullLine(curr->cont);
 
-  controlFlowDepth--;
+  //controlFlowDepth--;
   decIndent();
 }
 
 void PrintSExpression::visitResumeThrow(ResumeThrow* curr) {
-  controlFlowDepth++;
+  //controlFlowDepth++;
   o << '(';
   printExpressionContents(curr);
 
@@ -2880,12 +2888,12 @@ void PrintSExpression::visitResumeThrow(ResumeThrow* curr) {
 
   printFullLine(curr->cont);
 
-  controlFlowDepth--;
+  //controlFlowDepth--;
   decIndent();
 }
 
 void PrintSExpression::visitStackSwitch(StackSwitch* curr) {
-  controlFlowDepth++;
+  //controlFlowDepth++;
   o << '(';
   printExpressionContents(curr);
 
@@ -2897,7 +2905,7 @@ void PrintSExpression::visitStackSwitch(StackSwitch* curr) {
 
   printFullLine(curr->cont);
 
-  controlFlowDepth--;
+  //controlFlowDepth--;
   decIndent();
 }
 
