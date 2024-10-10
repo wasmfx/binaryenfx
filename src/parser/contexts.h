@@ -1504,11 +1504,12 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
 
   struct OnClauseInfo {
     Name tag;
-    std::optional<Index> label; // None = switch, Some = on label
+    Index label; // unset when isOnSwitch = true.
+    bool isOnSwitch;
   };
 
-  OnClauseInfo makeOnLabel(Name tag, Index label) { return {tag, index}; }
-  OnClauseInfo makeOnSwitch(Name tag) { return {tag, {}}; }
+  OnClauseInfo makeOnLabel(Name tag, Index label) { return {tag, label, false}; }
+  OnClauseInfo makeOnSwitch(Name tag) { return {tag, {}, true}; }
 
   std::vector<OnClauseInfo> makeOnClauseList() { return {}; }
   void appendOnClause(std::vector<OnClauseInfo>& list, OnClauseInfo info) {
@@ -2647,12 +2648,12 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
     onTags.reserve(resumetable.size());
     for (const OnClauseInfo& info : resumetable) {
       tags.push_back(info.tag);
-      if (info.label.has_value()) {
-        labels.push_back(info.label.value());
-        onTags.push_back(false);
-      } else {
+      if (info.isOnSwitch) {
         labels.push_back(Index());
         onTags.push_back(true);
+      } else {
+        labels.push_back(info.label);
+        onTags.push_back(false);
       }
     }
     return withLoc(pos, irBuilder.makeResume(type, tags, labels, onTags));
@@ -2671,12 +2672,12 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
     onTags.reserve(resumetable.size());
     for (auto& info : resumetable) {
       tags.push_back(info.tag);
-      if (info.label.has_value()) {
-        labels.push_back(info.label.value());
-        onTags.push_back(false);
-      } else {
+      if (info.isOnSwitch) {
         labels.push_back(Index());
         onTags.push_back(true);
+      } else {
+        labels.push_back(info.label);
+        onTags.push_back(false);
       }
     }
     return withLoc(pos, irBuilder.makeResumeThrow(type, tag, tags, labels, onTags));
