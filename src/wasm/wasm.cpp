@@ -1463,7 +1463,6 @@ void StackSwitch::finalize(Module* wasm) {
   }
 }
 
-
 size_t Function::getNumParams() { return getParams().size(); }
 
 size_t Function::getNumVars() { return vars.size(); }

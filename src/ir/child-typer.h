@@ -1102,7 +1102,6 @@ template<typename Subtype> struct ChildTyper : OverriddenVisitor<Subtype> {
     }
     note(&curr->cont, Type(curr->contType, Nullable));
   }
-
 };
 
 } // namespace wasm

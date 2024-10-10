@@ -3864,8 +3864,7 @@ void WasmBinaryReader::readFeatures(size_t payloadLen) {
       feature = FeatureSet::Strings;
     } else if (name == BinaryConsts::CustomSections::MultiMemoryFeature) {
       feature = FeatureSet::MultiMemory;
-    } else if (name ==
-               BinaryConsts::CustomSections::StackSwitchingFeature) {
+    } else if (name == BinaryConsts::CustomSections::StackSwitchingFeature) {
       feature = FeatureSet::StackSwitching;
     } else if (name == BinaryConsts::CustomSections::SharedEverythingFeature) {
       feature = FeatureSet::SharedEverything;
@@ -4152,11 +4151,13 @@ BinaryConsts::ASTNodes WasmBinaryReader::readExpression(Expression*& curr) {
       break;
     }
     case BinaryConsts::ResumeThrow: {
-      visitResumeThrow((curr = allocator.alloc<ResumeThrow>())->cast<ResumeThrow>());
+      visitResumeThrow(
+        (curr = allocator.alloc<ResumeThrow>())->cast<ResumeThrow>());
       break;
     }
     case BinaryConsts::Switch: {
-      visitStackSwitch((curr = allocator.alloc<StackSwitch>())->cast<StackSwitch>());
+      visitStackSwitch(
+        (curr = allocator.alloc<StackSwitch>())->cast<StackSwitch>());
       break;
     }
     case BinaryConsts::AtomicPrefix: {
