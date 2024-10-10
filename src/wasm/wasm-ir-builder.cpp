@@ -1957,12 +1957,13 @@ Result<> IRBuilder::makeResume(HeapType ct,
   Resume curr(wasm.allocator);
   curr.contType = ct;
   curr.operands.resize(ct.getContinuation().type.getSignature().params.size());
+  curr.onTags.set(onTags);
   CHECK_ERR(visitResume(&curr));
 
   std::vector<Name> labelNames;
   labelNames.reserve(labels.size());
   for (size_t i = 0; i < labels.size(); i++) {
-    if (onTags[i]) {
+    if (curr.onTags[i]) {
       labelNames.push_back(Name());
     } else {
       auto name = getLabelName(labels[i]);
@@ -1983,12 +1984,13 @@ Result<> IRBuilder::makeResumeThrow(HeapType ct, Name tag, const std::vector<Nam
   curr.contType = ct;
   curr.tag = tag;
   curr.operands.resize(wasm.getTag(tag)->sig.params.size());
+  curr.onTags.set(onTags);
   CHECK_ERR(visitResumeThrow(&curr));
 
   std::vector<Name> labelNames;
   labelNames.reserve(labels.size());
   for (size_t i = 0; i < labels.size(); i++) {
-    if (onTags[i]) {
+    if (curr.onTags[i]) {
       labelNames.push_back(Name());
     } else {
       auto name = getLabelName(labels[i]);
