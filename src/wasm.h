@@ -2023,8 +2023,7 @@ public:
 
 class StackSwitch : public SpecificExpression<Expression::StackSwitchId> {
 public:
-  StackSwitch(MixedArena& allocator)
-    : operands(allocator) {}
+  StackSwitch(MixedArena& allocator) : operands(allocator) {}
 
   HeapType contType;
   Name tag;

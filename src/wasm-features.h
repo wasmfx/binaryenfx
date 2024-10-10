@@ -138,9 +138,7 @@ struct FeatureSet {
   bool hasExtendedConst() const { return (features & ExtendedConst) != 0; }
   bool hasStrings() const { return (features & Strings) != 0; }
   bool hasMultiMemory() const { return (features & MultiMemory) != 0; }
-  bool hasStackSwitching() const {
-    return (features & StackSwitching) != 0;
-  }
+  bool hasStackSwitching() const { return (features & StackSwitching) != 0; }
   bool hasSharedEverything() const {
     return (features & SharedEverything) != 0;
   }

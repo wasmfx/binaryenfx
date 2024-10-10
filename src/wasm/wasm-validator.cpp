@@ -3480,10 +3480,9 @@ void FunctionValidator::visitStringSliceWTF(StringSliceWTF* curr) {
 
 void FunctionValidator::visitContNew(ContNew* curr) {
   // TODO implement actual type-checking
-  shouldBeTrue(
-    !getModule() || getModule()->features.hasStackSwitching(),
-    curr,
-    "cont.new requires stack-switching [--enable-stack-switching]");
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "cont.new requires stack-switching [--enable-stack-switching]");
 
   shouldBeTrue((curr->contType.isContinuation() &&
                 curr->contType.getContinuation().type.isSignature()),
@@ -3493,10 +3492,9 @@ void FunctionValidator::visitContNew(ContNew* curr) {
 
 void FunctionValidator::visitContBind(ContBind* curr) {
   // TODO implement actual type-checking
-  shouldBeTrue(
-    !getModule() || getModule()->features.hasStackSwitching(),
-    curr,
-    "cont.bind requires stack-switching [--enable-stack-switching]");
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "cont.bind requires stack-switching [--enable-stack-switching]");
 
   shouldBeTrue((curr->contTypeBefore.isContinuation() &&
                 curr->contTypeBefore.getContinuation().type.isSignature()),
@@ -3511,18 +3509,16 @@ void FunctionValidator::visitContBind(ContBind* curr) {
 
 void FunctionValidator::visitSuspend(Suspend* curr) {
   // TODO implement actual type-checking
-  shouldBeTrue(
-    !getModule() || getModule()->features.hasStackSwitching(),
-    curr,
-    "suspend requires stack-switching [--enable-stack-switching]");
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "suspend requires stack-switching [--enable-stack-switching]");
 }
 
 void FunctionValidator::visitResume(Resume* curr) {
   // TODO implement actual type-checking
-  shouldBeTrue(
-    !getModule() || getModule()->features.hasStackSwitching(),
-    curr,
-    "resume requires stack-switching [--enable-stack-switching]");
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "resume requires stack-switching [--enable-stack-switching]");
 
   shouldBeTrue(
     curr->sentTypes.size() == curr->handlerBlocks.size(),
@@ -3555,17 +3551,15 @@ void FunctionValidator::visitResumeThrow(ResumeThrow* curr) {
 
 void FunctionValidator::visitStackSwitch(StackSwitch* curr) {
   // TODO implement actual type-checking
-  shouldBeTrue(
-    !getModule() || getModule()->features.hasStackSwitching(),
-    curr,
-    "switch requires stack-switching [--enable-stack-switching]");
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "switch requires stack-switching [--enable-stack-switching]");
 
   shouldBeTrue((curr->contType.isContinuation() &&
                 curr->contType.getContinuation().type.isSignature()),
                curr,
                "invalid type in Switch expression");
 }
-
 
 void FunctionValidator::visitFunction(Function* curr) {
   FeatureSet features;

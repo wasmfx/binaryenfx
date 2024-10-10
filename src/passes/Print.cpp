@@ -2492,7 +2492,6 @@ struct PrintExpressionContents
     o << ' ';
     curr->tag.print(o);
   }
-
 };
 
 void PrintSExpression::setModule(Module* module) {
@@ -2859,7 +2858,7 @@ void PrintSExpression::visitTryTable(TryTable* curr) {
 }
 
 void PrintSExpression::visitResume(Resume* curr) {
-  //controlFlowDepth++;
+  // controlFlowDepth++;
   o << '(';
   printExpressionContents(curr);
 
@@ -2871,12 +2870,12 @@ void PrintSExpression::visitResume(Resume* curr) {
 
   printFullLine(curr->cont);
 
-  //controlFlowDepth--;
+  // controlFlowDepth--;
   decIndent();
 }
 
 void PrintSExpression::visitResumeThrow(ResumeThrow* curr) {
-  //controlFlowDepth++;
+  // controlFlowDepth++;
   o << '(';
   printExpressionContents(curr);
 
@@ -2888,12 +2887,12 @@ void PrintSExpression::visitResumeThrow(ResumeThrow* curr) {
 
   printFullLine(curr->cont);
 
-  //controlFlowDepth--;
+  // controlFlowDepth--;
   decIndent();
 }
 
 void PrintSExpression::visitStackSwitch(StackSwitch* curr) {
-  //controlFlowDepth++;
+  // controlFlowDepth++;
   o << '(';
   printExpressionContents(curr);
 
@@ -2905,7 +2904,7 @@ void PrintSExpression::visitStackSwitch(StackSwitch* curr) {
 
   printFullLine(curr->cont);
 
-  //controlFlowDepth--;
+  // controlFlowDepth--;
   decIndent();
 }
 

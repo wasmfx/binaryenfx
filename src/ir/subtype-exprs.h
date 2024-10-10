@@ -395,8 +395,12 @@ struct SubtypingDiscoverer : public OverriddenVisitor<SubType> {
   void visitContBind(ContBind* curr) { WASM_UNREACHABLE("not implemented"); }
   void visitSuspend(Suspend* curr) { WASM_UNREACHABLE("not implemented"); }
   void visitResume(Resume* curr) { WASM_UNREACHABLE("not implemented"); }
-  void visitResumeThrow(ResumeThrow* curr) { WASM_UNREACHABLE("not implemented"); }
-  void visitStackSwitch(StackSwitch* curr) { WASM_UNREACHABLE("not implemented"); }
+  void visitResumeThrow(ResumeThrow* curr) {
+    WASM_UNREACHABLE("not implemented");
+  }
+  void visitStackSwitch(StackSwitch* curr) {
+    WASM_UNREACHABLE("not implemented");
+  }
 };
 
 } // namespace wasm

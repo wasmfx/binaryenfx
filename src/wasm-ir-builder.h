@@ -230,8 +230,7 @@ public:
                                          const std::vector<Name>& tags,
                                          const std::vector<Index>& labels,
                                          const std::vector<bool>& onTags);
-  [[nodiscard]] Result<> makeStackSwitch(HeapType ct,
-                                         Name tag);
+  [[nodiscard]] Result<> makeStackSwitch(HeapType ct, Name tag);
 
   // Private functions that must be public for technical reasons.
   [[nodiscard]] Result<> visitExpression(Expression*);

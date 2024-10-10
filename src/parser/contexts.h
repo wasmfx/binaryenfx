@@ -871,7 +871,8 @@ struct NullInstrParserCtx {
     return Ok{};
   }
   template<typename HeapTypeT>
-  Result<> makeStackSwitch(Index, const std::vector<Annotation>&, HeapTypeT, TagIdxT) {
+  Result<>
+  makeStackSwitch(Index, const std::vector<Annotation>&, HeapTypeT, TagIdxT) {
     return Ok{};
   }
 };
@@ -1508,7 +1509,9 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
     bool isOnSwitch;
   };
 
-  OnClauseInfo makeOnLabel(Name tag, Index label) { return {tag, label, false}; }
+  OnClauseInfo makeOnLabel(Name tag, Index label) {
+    return {tag, label, false};
+  }
   OnClauseInfo makeOnSwitch(Name tag) { return {tag, {}, true}; }
 
   std::vector<OnClauseInfo> makeOnClauseList() { return {}; }
@@ -2680,7 +2683,8 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
         onTags.push_back(false);
       }
     }
-    return withLoc(pos, irBuilder.makeResumeThrow(type, tag, tags, labels, onTags));
+    return withLoc(pos,
+                   irBuilder.makeResumeThrow(type, tag, tags, labels, onTags));
   }
 
   Result<> makeStackSwitch(Index pos,
@@ -2689,7 +2693,6 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
                            Name tag) {
     return withLoc(pos, irBuilder.makeStackSwitch(type, tag));
   }
-
 };
 
 } // namespace wasm::WATParser

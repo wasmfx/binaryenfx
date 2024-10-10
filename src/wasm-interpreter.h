@@ -2555,8 +2555,12 @@ public:
   Flow visitContBind(ContBind* curr) { WASM_UNREACHABLE("unimplemented"); }
   Flow visitSuspend(Suspend* curr) { WASM_UNREACHABLE("unimplemented"); }
   Flow visitResume(Resume* curr) { WASM_UNREACHABLE("unimplemented"); }
-  Flow visitResumeThrow(ResumeThrow* curr) { WASM_UNREACHABLE("unimplemented"); }
-  Flow visitStackSwitch(StackSwitch* curr) { WASM_UNREACHABLE("unimplemented"); }
+  Flow visitResumeThrow(ResumeThrow* curr) {
+    WASM_UNREACHABLE("unimplemented");
+  }
+  Flow visitStackSwitch(StackSwitch* curr) {
+    WASM_UNREACHABLE("unimplemented");
+  }
 
   void trap(const char* why) override { throw NonconstantException(); }
 
