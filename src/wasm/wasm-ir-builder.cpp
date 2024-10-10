@@ -1967,7 +1967,6 @@ Result<> IRBuilder::makeResume(HeapType ct,
     if (curr.onTags[i]) {
       labelNames.push_back(Name());
     } else {
-      std::cout << "LABEL: " << labels[i] << std::endl;
       auto name = getLabelName(labels[i]);
       CHECK_ERR(name);
       labelNames.push_back(*name);
