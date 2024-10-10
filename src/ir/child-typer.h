@@ -1096,7 +1096,8 @@ template<typename Subtype> struct ChildTyper : OverriddenVisitor<Subtype> {
 
   void visitStackSwitch(StackSwitch* curr) {
     auto params = curr->contType.getContinuation().type.getSignature().params;
-    assert(params.size() >= 1 && ((params.size() - 1) == curr->operands.size()));
+    assert(params.size() >= 1 &&
+           ((params.size() - 1) == curr->operands.size()));
     for (size_t i = 0; i < params.size() - 1; ++i) {
       note(&curr->operands[i], params[i]);
     }
