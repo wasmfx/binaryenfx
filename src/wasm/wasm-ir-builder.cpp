@@ -2005,6 +2005,7 @@ Result<> IRBuilder::makeResumeThrow(HeapType ct,
       labelNames.push_back(*name);
     }
   }
+  curr.handlerBlocks.set(labelNames);
   std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
   push(builder.makeResumeThrow(
     ct, tag, tags, labelNames, onTags, operands, curr.cont));
