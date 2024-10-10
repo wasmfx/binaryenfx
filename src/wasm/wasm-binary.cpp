@@ -8068,11 +8068,14 @@ void WasmBinaryReader::visitStackSwitch(StackSwitch* curr) {
   if (numArgs < 1) {
     throwError("switch requires a higher order continuation argument");
   }
+  numArgs = numArgs - 1;
   curr->cont = popNonVoidExpression();
-  curr->operands.resize(numArgs - 1);
+  curr->operands.resize(numArgs);
   for (size_t i = 0; i < numArgs; i++) {
     curr->operands[numArgs - i - 1] = popNonVoidExpression();
   }
+
+  curr->finalize(&wasm);
 }
 
 void WasmBinaryReader::throwError(std::string text) {
