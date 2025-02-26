@@ -149,6 +149,7 @@ Literal::Literal(const Literal& other) : type(other.type) {
     case HeapType::nofunc:
     case HeapType::noexn:
     case HeapType::nocont:
+    case HeapType::nohandler:
       WASM_UNREACHABLE("null literals should already have been handled");
     case HeapType::any:
     case HeapType::eq:
@@ -156,6 +157,7 @@ Literal::Literal(const Literal& other) : type(other.type) {
     case HeapType::cont:
     case HeapType::struct_:
     case HeapType::array:
+    case HeapType::handler:
       WASM_UNREACHABLE("invalid type");
     case HeapType::string:
       WASM_UNREACHABLE("TODO: string literals");
@@ -644,6 +646,9 @@ std::ostream& operator<<(std::ostream& o, Literal literal) {
         case HeapType::nocont:
           o << "nullcontref";
           break;
+        case HeapType::nohandler:
+          o << "nullhandlerref";
+          break;
         case HeapType::ext:
           o << "externref";
           break;
@@ -656,6 +661,7 @@ std::ostream& operator<<(std::ostream& o, Literal literal) {
         case HeapType::cont:
         case HeapType::struct_:
         case HeapType::array:
+        case HeapType::handler:
           WASM_UNREACHABLE("invalid type");
         case HeapType::string: {
           auto data = literal.getGCData();

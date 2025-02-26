@@ -516,6 +516,8 @@ public:
   void visitResume(Resume* curr);
   void visitResumeThrow(ResumeThrow* curr);
   void visitStackSwitch(StackSwitch* curr);
+  void visitSuspendTo(SuspendTo* curr);
+  void visitResumeWith(ResumeWith* curr);
 
   void visitFunction(Function* curr);
 
@@ -3717,6 +3719,37 @@ void FunctionValidator::visitStackSwitch(StackSwitch* curr) {
   if (!shouldBeTrue(!!tag, curr, "switch must be annotated with a tag")) {
     return;
   }
+}
+
+void FunctionValidator::visitSuspendTo(SuspendTo* curr) {
+  // TODO implement actual type-checking
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "suspend requires stack-switching [--enable-stack-switching]");
+
+  shouldBeTrue(curr->handler->type.isHandler() ||
+                 curr->type == Type::unreachable,
+               curr,
+               "suspend_to must be annotated with a handler type");
+}
+
+void FunctionValidator::visitResumeWith(ResumeWith* curr) {
+  // TODO implement actual type-checking
+  shouldBeTrue(!getModule() || getModule()->features.hasStackSwitching(),
+               curr,
+               "resume requires stack-switching [--enable-stack-switching]");
+
+  shouldBeTrue(
+    curr->sentTypes.size() == curr->handlerBlocks.size(),
+    curr,
+    "sentTypes cache in resume instruction has not been initialized");
+
+  shouldBeTrue(
+    (curr->cont->type.isContinuation() &&
+     curr->cont->type.getHeapType().getContinuation().type.isSignature()) ||
+      curr->type == Type::unreachable,
+    curr,
+    "resume must be annotated with a continuation type");
 }
 
 void FunctionValidator::visitFunction(Function* curr) {

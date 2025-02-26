@@ -751,6 +751,8 @@ public:
     ResumeThrowId,
     // Id for the stack switching `switch`
     StackSwitchId,
+    ResumeWithId,
+    SuspendToId,
     NumExpressionIds
   };
   Id _id;
@@ -2061,6 +2063,50 @@ public:
 
   // We need access to the module to obtain the signature of the tag.
   void finalize();
+};
+
+class ResumeWith : public SpecificExpression<Expression::ResumeWithId> {
+public:
+  ResumeWith(MixedArena& allocator)
+    : handlerTags(allocator), handlerBlocks(allocator), operands(allocator),
+      sentTypes(allocator) {}
+
+  // The following two vectors are to be understood together
+  // pointwise. That is, the ith component of each vector together
+  // classifies an on-clause `(on $tag $label)` or `(on $tag
+  // switch)`. The first vector stores reifies the `$tag` bit of the
+  // aforementioned syntax...
+  ArenaVector<Name> handlerTags;
+  // ... whilst this vector reifies the `$label` bit of the
+  // syntax. For `switch` clauses the ith component will be the Empty
+  // name (i.e. `Name()`).
+  ArenaVector<Name> handlerBlocks;
+
+  ExpressionList operands;
+  Expression* cont;
+
+  void finalize();
+
+  // sentTypes[i] contains the type of the values that will be sent to
+  // the block handlerBlocks[i] if suspending with tag
+  // handlerTags[i]. Not part of the instruction's syntax, but stored
+  // here for subsequent use.  This information is cached here in
+  // order not to query the module every time we query the sent types.
+  ArenaVector<Type> sentTypes;
+};
+
+class SuspendTo : public SpecificExpression<Expression::SuspendToId> {
+public:
+  SuspendTo(MixedArena& allocator) : operands(allocator) {}
+
+  Name tag;
+  Expression* handler;
+  ExpressionList operands;
+
+  // We need access to the module to obtain the signature of the tag,
+  // which determines this node's type.
+  // If no module is given, then the type must have been set already.
+  void finalize(Module* wasm = nullptr);
 };
 
 // Globals

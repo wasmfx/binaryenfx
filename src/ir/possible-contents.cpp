@@ -1293,6 +1293,14 @@ struct InfoCollector
     // TODO: optimize when possible
     addRoot(curr);
   }
+  void visitResumeWith(ResumeWith* curr) {
+    // TODO: optimize when possible
+    addRoot(curr);
+  }
+  void visitSuspendTo(SuspendTo* curr) {
+    // TODO: optimize when possible
+    addRoot(curr);
+  }
 
   void visitFunction(Function* func) {
     // Functions with a result can flow a value out from their body.

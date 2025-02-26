@@ -62,6 +62,7 @@ struct HeapTypeInfo {
     Continuation continuation;
     Struct struct_;
     Array array;
+    Handler handler;
   };
 
   HeapTypeInfo(Signature sig) : kind(HeapTypeKind::Func), signature(sig) {}
@@ -72,6 +73,8 @@ struct HeapTypeInfo {
   HeapTypeInfo(Struct&& struct_)
     : kind(HeapTypeKind::Struct), struct_(std::move(struct_)) {}
   HeapTypeInfo(Array array) : kind(HeapTypeKind::Array), array(array) {}
+  HeapTypeInfo(Handler handler)
+    : kind(HeapTypeKind::Handler), handler(handler) {}
   ~HeapTypeInfo();
 
   constexpr bool isSignature() const { return kind == HeapTypeKind::Func; }
@@ -79,6 +82,7 @@ struct HeapTypeInfo {
   constexpr bool isStruct() const { return kind == HeapTypeKind::Struct; }
   constexpr bool isArray() const { return kind == HeapTypeKind::Array; }
   constexpr bool isData() const { return isStruct() || isArray(); }
+  constexpr bool isHandler() const { return kind == HeapTypeKind::Handler; }
 };
 
 // Helper for coinductively checking whether a pair of Types or HeapTypes are in
@@ -92,6 +96,7 @@ struct SubTyper {
   bool isSubType(const Continuation& a, const Continuation& b);
   bool isSubType(const Struct& a, const Struct& b);
   bool isSubType(const Array& a, const Array& b);
+  bool isSubType(const Handler& a, const Handler& b);
 };
 
 // Helper for finding the equirecursive least upper bound of two types.
@@ -125,6 +130,7 @@ struct TypePrinter {
   std::ostream& print(const Struct& struct_,
                       const std::unordered_map<Index, Name>& fieldNames);
   std::ostream& print(const Array& array);
+  std::ostream& print(const Handler& handler);
 };
 
 struct RecGroupHasher {
@@ -150,6 +156,7 @@ struct RecGroupHasher {
   size_t hash(const Continuation& sig) const;
   size_t hash(const Struct& struct_) const;
   size_t hash(const Array& array) const;
+  size_t hash(const Handler& Handler) const;
 };
 
 struct RecGroupEquator {
@@ -176,6 +183,7 @@ struct RecGroupEquator {
   bool eq(const Continuation& a, const Continuation& b) const;
   bool eq(const Struct& a, const Struct& b) const;
   bool eq(const Array& a, const Array& b) const;
+  bool eq(const Handler& a, const Handler& b) const;
 };
 
 // A wrapper around a RecGroup that provides equality and hashing based on the
@@ -291,6 +299,9 @@ protected:
       case HeapTypeKind::Array:
         taskList.push_back(Task::scan(&info->array.element.type));
         break;
+      case HeapTypeKind::Handler:
+        taskList.push_back(Task::scan(&info->handler.value_types));
+        break;
       case HeapTypeKind::Basic:
         WASM_UNREACHABLE("unexpected kind");
     }
@@ -375,6 +386,8 @@ HeapType::BasicHeapType getBasicHeapSupertype(HeapType type) {
       return HeapTypes::struct_.getBasic(info->share);
     case HeapTypeKind::Array:
       return HeapTypes::array.getBasic(info->share);
+    case HeapTypeKind::Handler:
+      return HeapTypes::handler.getBasic(info->share);
     case HeapTypeKind::Basic:
       break;
   }
@@ -406,6 +419,7 @@ std::optional<HeapType> getBasicHeapTypeLUB(HeapType::BasicHeapType a,
     case HeapType::func:
     case HeapType::cont:
     case HeapType::exn:
+    case HeapType::handler:
       return std::nullopt;
     case HeapType::any:
       lubUnshared = HeapType::any;
@@ -441,6 +455,7 @@ std::optional<HeapType> getBasicHeapTypeLUB(HeapType::BasicHeapType a,
     case HeapType::nofunc:
     case HeapType::nocont:
     case HeapType::noexn:
+    case HeapType::nohandler:
       // Bottom types already handled.
       WASM_UNREACHABLE("unexpected basic type");
   }
@@ -463,6 +478,9 @@ HeapTypeInfo::~HeapTypeInfo() {
       return;
     case HeapTypeKind::Array:
       array.~Array();
+      return;
+    case HeapTypeKind::Handler:
+      handler.~Handler();
       return;
     case HeapTypeKind::Basic:
       break;
@@ -844,6 +862,16 @@ HeapType::HeapType(Continuation continuation) {
     globalRecGroupStore.insert(std::make_unique<HeapTypeInfo>(continuation)));
 }
 
+HeapType::HeapType(const Handler& handler) {
+  new (this) HeapType(
+    globalRecGroupStore.insert(std::make_unique<HeapTypeInfo>(handler)));
+}
+
+HeapType::HeapType(Handler&& handler) {
+  new (this) HeapType(globalRecGroupStore.insert(
+    std::make_unique<HeapTypeInfo>(std::move(handler))));
+}
+
 HeapType::HeapType(const Struct& struct_) {
   new (this) HeapType(
     globalRecGroupStore.insert(std::make_unique<HeapTypeInfo>(struct_)));
@@ -892,6 +920,11 @@ Continuation HeapType::getContinuation() const {
   return getHeapTypeInfo(*this)->continuation;
 }
 
+Handler HeapType::getHandler() const {
+  assert(isHandler());
+  return getHeapTypeInfo(*this)->handler;
+}
+
 const Struct& HeapType::getStruct() const {
   assert(isStruct());
   return getHeapTypeInfo(*this)->struct_;
@@ -935,6 +968,8 @@ std::optional<HeapType> HeapType::getSuperType() const {
       case exn:
       case noexn:
       case string:
+      case handler:
+      case nohandler:
         return {};
       case eq:
         return HeapType(any).getBasic(share);
@@ -955,6 +990,8 @@ std::optional<HeapType> HeapType::getSuperType() const {
       return HeapType(struct_).getBasic(share);
     case HeapTypeKind::Array:
       return HeapType(array).getBasic(share);
+    case HeapTypeKind::Handler:
+      return HeapType(handler).getBasic(share);
     case HeapTypeKind::Basic:
       break;
   }
@@ -980,6 +1017,7 @@ size_t HeapType::getDepth() const {
         case HeapType::cont:
         case HeapType::any:
         case HeapType::exn:
+        case HeapType::handler:
           break;
         case HeapType::eq:
           depth++;
@@ -995,12 +1033,14 @@ size_t HeapType::getDepth() const {
         case HeapType::nocont:
         case HeapType::noext:
         case HeapType::noexn:
+        case HeapType::nohandler:
           // Bottom types are infinitely deep.
           depth = size_t(-1l);
       }
       break;
     case HeapTypeKind::Func:
     case HeapTypeKind::Cont:
+    case HeapTypeKind::Handler:
       ++depth;
       break;
     case HeapTypeKind::Struct:
@@ -1024,6 +1064,8 @@ HeapType::BasicHeapType HeapType::getUnsharedBottom() const {
         return nofunc;
       case cont:
         return nocont;
+      case handler:
+        return nohandler;
       case exn:
         return noexn;
       case any:
@@ -1042,6 +1084,8 @@ HeapType::BasicHeapType HeapType::getUnsharedBottom() const {
         return nocont;
       case noexn:
         return noexn;
+      case nohandler:
+        return nohandler;
     }
   }
   auto* info = getHeapTypeInfo(*this);
@@ -1050,6 +1094,8 @@ HeapType::BasicHeapType HeapType::getUnsharedBottom() const {
       return nofunc;
     case HeapTypeKind::Cont:
       return nocont;
+    case HeapTypeKind::Handler:
+      return nohandler;
     case HeapTypeKind::Struct:
     case HeapTypeKind::Array:
       return none;
@@ -1067,6 +1113,8 @@ HeapType::BasicHeapType HeapType::getUnsharedTop() const {
       return func;
     case nocont:
       return cont;
+    case nohandler:
+      return handler;
     case noext:
       return ext;
     case noexn:
@@ -1074,6 +1122,7 @@ HeapType::BasicHeapType HeapType::getUnsharedTop() const {
     case ext:
     case func:
     case cont:
+    case handler:
     case any:
     case eq:
     case i31:
@@ -1119,6 +1168,13 @@ std::vector<Type> HeapType::getTypeChildren() const {
       return {getArray().element.type};
     case HeapTypeKind::Cont:
       return {};
+    case HeapTypeKind::Handler: {
+      std::vector<Type> children;
+      for (auto t : getHandler().value_types) {
+        children.push_back(t);
+      }
+      return children;
+    }
   }
   WASM_UNREACHABLE("unexpected kind");
 }
@@ -1255,6 +1311,8 @@ FeatureSet HeapType::getFeatures() const {
             return;
           case HeapType::cont:
           case HeapType::nocont:
+          case HeapType::handler:
+          case HeapType::nohandler:
             feats |= FeatureSet::StackSwitching;
             return;
         }
@@ -1280,7 +1338,7 @@ FeatureSet HeapType::getFeatures() const {
         if (sig.results.isTuple()) {
           feats |= FeatureSet::Multivalue;
         }
-      } else if (heapType.isContinuation()) {
+      } else if (heapType.isContinuation() || heapType.isHandler()) {
         feats |= FeatureSet::StackSwitching;
       }
 
@@ -1340,6 +1398,9 @@ TypeNames DefaultTypeNameGenerator::getNames(HeapType type) {
       case HeapTypeKind::Cont:
         stream << "cont." << contCount++;
         break;
+      case HeapTypeKind::Handler:
+        stream << "handler." << handlerCount++;
+        break;
       case HeapTypeKind::Basic:
         WASM_UNREACHABLE("unexpected kind");
     }
@@ -1357,6 +1418,7 @@ std::string Type::toString() const { return genericToString(*this); }
 std::string HeapType::toString() const { return genericToString(*this); }
 std::string Signature::toString() const { return genericToString(*this); }
 std::string Continuation::toString() const { return genericToString(*this); }
+std::string Handler::toString() const { return genericToString(*this); }
 std::string Struct::toString() const { return genericToString(*this); }
 std::string Array::toString() const { return genericToString(*this); }
 
@@ -1380,6 +1442,9 @@ std::ostream& operator<<(std::ostream& os, Signature sig) {
 }
 std::ostream& operator<<(std::ostream& os, Continuation cont) {
   return TypePrinter(os).print(cont);
+}
+std::ostream& operator<<(std::ostream& os, Handler handler) {
+  return TypePrinter(os).print(handler);
 }
 std::ostream& operator<<(std::ostream& os, Field field) {
   return TypePrinter(os).print(field);
@@ -1462,6 +1527,8 @@ bool SubTyper::isSubType(HeapType a, HeapType b) {
         return aTop == HeapType::func;
       case HeapType::cont:
         return aTop == HeapType::cont;
+      case HeapType::handler:
+        return aTop == HeapType::handler;
       case HeapType::exn:
         return aTop == HeapType::exn;
       case HeapType::any:
@@ -1482,6 +1549,7 @@ bool SubTyper::isSubType(HeapType a, HeapType b) {
       case HeapType::nofunc:
       case HeapType::nocont:
       case HeapType::noexn:
+      case HeapType::nohandler:
         return false;
     }
   }
@@ -1528,6 +1596,10 @@ bool SubTyper::isSubType(const Signature& a, const Signature& b) {
 
 bool SubTyper::isSubType(const Continuation& a, const Continuation& b) {
   return isSubType(a.type, b.type);
+}
+
+bool SubTyper::isSubType(const Handler& a, const Handler& b) {
+  return isSubType(a.value_types, b.value_types);
 }
 
 bool SubTyper::isSubType(const Struct& a, const Struct& b) {
@@ -1618,6 +1690,10 @@ std::ostream& TypePrinter::print(Type type) {
           return os << "nullcontref";
         case HeapType::noexn:
           return os << "nullexnref";
+        case HeapType::nohandler:
+          return os << "nullhandlerref";
+        case HeapType::handler:
+          return os << "handlerref";
       }
     }
     os << "(ref ";
@@ -1683,6 +1759,12 @@ std::ostream& TypePrinter::print(HeapType type) {
       case HeapType::noexn:
         os << "noexn";
         break;
+      case HeapType::nohandler:
+        os << "nohandler";
+        break;
+      case HeapType::handler:
+        os << "handler";
+        break;
     }
     if (type.isShared()) {
       os << ')';
@@ -1727,6 +1809,9 @@ std::ostream& TypePrinter::print(HeapType type) {
       break;
     case HeapTypeKind::Cont:
       print(type.getContinuation());
+      break;
+    case HeapTypeKind::Handler:
+      print(type.getHandler());
       break;
     case HeapTypeKind::Basic:
       WASM_UNREACHABLE("unexpected kind");
@@ -1796,6 +1881,15 @@ std::ostream& TypePrinter::print(const Signature& sig) {
 std::ostream& TypePrinter::print(const Continuation& continuation) {
   os << "(cont ";
   printHeapTypeName(continuation.type);
+  return os << ')';
+}
+
+std::ostream& TypePrinter::print(const Handler& handler) {
+  os << "(handler";
+  for (Type t : handler.value_types) {
+    os << ' ';
+    print(t);
+  }
   return os << ')';
 }
 
@@ -1895,6 +1989,9 @@ size_t RecGroupHasher::hash(const HeapTypeInfo& info) const {
     case HeapTypeKind::Array:
       hash_combine(digest, hash(info.array));
       return digest;
+    case HeapTypeKind::Handler:
+      hash_combine(digest, hash(info.handler));
+      return digest;
     case HeapTypeKind::Basic:
       break;
   }
@@ -1926,6 +2023,13 @@ size_t RecGroupHasher::hash(const Continuation& continuation) const {
   // We throw in a magic constant to distinguish (cont $foo) from $foo
   size_t magic = 0xc0117;
   size_t digest = hash(continuation.type);
+  rehash(digest, magic);
+  return digest;
+}
+
+size_t RecGroupHasher::hash(const Handler& handler) const {
+  size_t magic = 0xe05a2;
+  size_t digest = hash(handler.value_types);
   rehash(digest, magic);
   return digest;
 }
@@ -2023,6 +2127,8 @@ bool RecGroupEquator::eq(const HeapTypeInfo& a, const HeapTypeInfo& b) const {
       return eq(a.signature, b.signature);
     case HeapTypeKind::Cont:
       return eq(a.continuation, b.continuation);
+    case HeapTypeKind::Handler:
+      return eq(a.handler, b.handler);
     case HeapTypeKind::Struct:
       return eq(a.struct_, b.struct_);
     case HeapTypeKind::Array:
@@ -2051,6 +2157,10 @@ bool RecGroupEquator::eq(const Signature& a, const Signature& b) const {
 
 bool RecGroupEquator::eq(const Continuation& a, const Continuation& b) const {
   return eq(a.type, b.type);
+}
+
+bool RecGroupEquator::eq(const Handler& a, const Handler& b) const {
+  return eq(a.value_types, b.value_types);
 }
 
 bool RecGroupEquator::eq(const Struct& a, const Struct& b) const {
@@ -2095,6 +2205,9 @@ struct TypeBuilder::Impl {
         case HeapTypeKind::Cont:
           info->continuation = hti.continuation;
           break;
+        case HeapTypeKind::Handler:
+          info->handler = hti.handler;
+          break;
         case HeapTypeKind::Struct:
           info->struct_ = std::move(hti.struct_);
           break;
@@ -2138,6 +2251,11 @@ void TypeBuilder::setHeapType(size_t i, Signature signature) {
 void TypeBuilder::setHeapType(size_t i, Continuation continuation) {
   assert(i < size() && "index out of bounds");
   impl->entries[i].set(continuation);
+}
+
+void TypeBuilder::setHeapType(size_t i, Handler handler) {
+  assert(i < size() && "index out of bounds");
+  impl->entries[i].set(handler);
 }
 
 void TypeBuilder::setHeapType(size_t i, const Struct& struct_) {
@@ -2221,6 +2339,8 @@ bool isValidSupertype(const HeapTypeInfo& sub, const HeapTypeInfo& super) {
       return typer.isSubType(sub.signature, super.signature);
     case HeapTypeKind::Cont:
       return typer.isSubType(sub.continuation, super.continuation);
+    case HeapTypeKind::Handler:
+      return typer.isSubType(sub.handler, super.handler);
     case HeapTypeKind::Struct:
       return typer.isSubType(sub.struct_, super.struct_);
     case HeapTypeKind::Array:
@@ -2273,6 +2393,9 @@ validateType(HeapTypeInfo& info, std::unordered_set<HeapType>& seenTypes) {
         }
         break;
       }
+      case HeapTypeKind::Handler:
+        // TODO: Figure out shared handler names.
+        return TypeBuilder::ErrorReason::InvalidUnsharedField;
       case HeapTypeKind::Basic:
         WASM_UNREACHABLE("unexpected kind");
     }

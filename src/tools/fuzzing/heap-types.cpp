@@ -145,6 +145,8 @@ struct HeapTypeGeneratorImpl {
             break;
           case wasm::HeapTypeKind::Cont:
             WASM_UNREACHABLE("TODO: cont");
+          case wasm::HeapTypeKind::Handler:
+            WASM_UNREACHABLE("TODO: handler");
           case wasm::HeapTypeKind::Basic:
             WASM_UNREACHABLE("unexpected kind");
         }
@@ -435,6 +437,7 @@ struct HeapTypeGeneratorImpl {
         case HeapType::func:
           return pickSubFunc(share);
         case HeapType::cont:
+        case HeapType::handler:
           WASM_UNREACHABLE("not implemented");
         case HeapType::any:
           return pickSubAny(share);
@@ -454,6 +457,7 @@ struct HeapTypeGeneratorImpl {
         case HeapType::nofunc:
         case HeapType::nocont:
         case HeapType::noexn:
+        case HeapType::nohandler:
           return type;
       }
       WASM_UNREACHABLE("unexpected type");
@@ -498,6 +502,7 @@ struct HeapTypeGeneratorImpl {
       case HeapType::func:
       case HeapType::exn:
       case HeapType::cont:
+      case HeapType::handler:
       case HeapType::any:
         break;
       case HeapType::eq:
@@ -517,6 +522,7 @@ struct HeapTypeGeneratorImpl {
       case HeapType::nofunc:
         return pickSubFunc(share);
       case HeapType::nocont:
+      case HeapType::nohandler:
         WASM_UNREACHABLE("not implemented");
       case HeapType::noext:
         candidates.push_back(HeapTypes::ext.getBasic(share));
@@ -942,6 +948,8 @@ std::vector<HeapType> Inhabitator::build() {
       }
       case HeapTypeKind::Cont:
         WASM_UNREACHABLE("TODO: cont");
+      case HeapTypeKind::Handler:
+        WASM_UNREACHABLE("TODO: handler");
       case HeapTypeKind::Basic:
         break;
     }
@@ -1038,6 +1046,7 @@ bool isUninhabitable(HeapType type,
       return false;
     case HeapTypeKind::Struct:
     case HeapTypeKind::Array:
+    case HeapTypeKind::Handler:
       break;
   }
   if (visited.count(type)) {
@@ -1057,6 +1066,11 @@ bool isUninhabitable(HeapType type,
       break;
     case HeapTypeKind::Array:
       if (isUninhabitable(type.getArray().element.type, visited, visiting)) {
+        return true;
+      }
+      break;
+    case HeapTypeKind::Handler:
+      if (isUninhabitable(type.getHandler().value_types, visited, visiting)) {
         return true;
       }
       break;
