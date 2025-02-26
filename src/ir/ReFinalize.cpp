@@ -186,6 +186,10 @@ void ReFinalize::visitSuspend(Suspend* curr) { curr->finalize(getModule()); }
 void ReFinalize::visitResume(Resume* curr) { curr->finalize(); }
 void ReFinalize::visitResumeThrow(ResumeThrow* curr) { curr->finalize(); }
 void ReFinalize::visitStackSwitch(StackSwitch* curr) { curr->finalize(); }
+void ReFinalize::visitResumeWith(ResumeWith* curr) { curr->finalize(); }
+void ReFinalize::visitSuspendTo(SuspendTo* curr) {
+  curr->finalize(getModule());
+}
 
 void ReFinalize::visitExport(Export* curr) { WASM_UNREACHABLE("unimp"); }
 void ReFinalize::visitGlobal(Global* curr) { WASM_UNREACHABLE("unimp"); }

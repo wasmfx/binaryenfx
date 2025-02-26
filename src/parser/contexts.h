@@ -92,6 +92,7 @@ struct NullTypeParserCtx {
   using BlockTypeT = Ok;
   using SignatureT = Ok;
   using ContinuationT = Ok;
+  using HandlerT = Ok;
   using StorageT = Ok;
   using FieldT = Ok;
   using FieldsT = Ok;
@@ -115,11 +116,13 @@ struct NullTypeParserCtx {
   HeapTypeT makeExnType(Shareability) { return Ok{}; }
   HeapTypeT makeStringType(Shareability) { return Ok{}; }
   HeapTypeT makeContType(Shareability) { return Ok{}; }
+  HeapTypeT makeHandlerType(Shareability) { return Ok{}; }
   HeapTypeT makeNoneType(Shareability) { return Ok{}; }
   HeapTypeT makeNoextType(Shareability) { return Ok{}; }
   HeapTypeT makeNofuncType(Shareability) { return Ok{}; }
   HeapTypeT makeNoexnType(Shareability) { return Ok{}; }
   HeapTypeT makeNocontType(Shareability) { return Ok{}; }
+  HeapTypeT makeNohandlerType(Shareability) { return Ok{}; }
 
   TypeT makeI32() { return Ok{}; }
   TypeT makeI64() { return Ok{}; }
@@ -145,6 +148,7 @@ struct NullTypeParserCtx {
 
   SignatureT makeFuncType(ParamsT*, ResultsT*) { return Ok{}; }
   ContinuationT makeContType(HeapTypeT) { return Ok{}; }
+  HandlerT makeHandlerType(TypeT) { return Ok{}; }
 
   StorageT makeI8() { return Ok{}; }
   StorageT makeI16() { return Ok{}; }
@@ -188,6 +192,7 @@ template<typename Ctx> struct TypeParserCtx {
   using BlockTypeT = HeapType;
   using SignatureT = Signature;
   using ContinuationT = Continuation;
+  using HandlerT = Handler;
   using StorageT = Field;
   using FieldT = Field;
   using FieldsT = std::pair<std::vector<Name>, std::vector<Field>>;
@@ -235,6 +240,9 @@ template<typename Ctx> struct TypeParserCtx {
   HeapTypeT makeContType(Shareability share) {
     return HeapTypes::cont.getBasic(share);
   }
+  HeapTypeT makeHandlerType(Shareability share) {
+    return HeapTypes::handler.getBasic(share);
+  }
   HeapTypeT makeNoneType(Shareability share) {
     return HeapTypes::none.getBasic(share);
   }
@@ -249,6 +257,9 @@ template<typename Ctx> struct TypeParserCtx {
   }
   HeapTypeT makeNocontType(Shareability share) {
     return HeapTypes::nocont.getBasic(share);
+  }
+  HeapTypeT makeNohandlerType(Shareability share) {
+    return HeapTypes::nohandler.getBasic(share);
   }
 
   TypeT makeI32() { return Type::i32; }
@@ -287,6 +298,7 @@ template<typename Ctx> struct TypeParserCtx {
   }
 
   ContinuationT makeContType(HeapTypeT ft) { return Continuation(ft); }
+  HandlerT makeHandlerType(TypeT type) { return Handler(type); }
 
   StorageT makeI8() { return Field(Field::i8, Immutable); }
   StorageT makeI16() { return Field(Field::i16, Immutable); }
@@ -893,6 +905,18 @@ struct NullInstrParserCtx {
   makeStackSwitch(Index, const std::vector<Annotation>&, HeapTypeT, TagIdxT) {
     return Ok{};
   }
+  template<typename HeapTypeT>
+  Result<>
+  makeSuspendTo(Index, const std::vector<Annotation>&, HeapTypeT, TagIdxT) {
+    return Ok{};
+  }
+  template<typename HeapTypeT>
+  Result<> makeResumeWith(Index,
+                          const std::vector<Annotation>&,
+                          HeapTypeT,
+                          const TagLabelListT&) {
+    return Ok{};
+  }
 };
 
 struct NullCtx : NullTypeParserCtx, NullInstrParserCtx {
@@ -973,6 +997,7 @@ struct ParseDeclsCtx : NullTypeParserCtx, NullInstrParserCtx {
 
   void addFuncType(SignatureT) {}
   void addContType(ContinuationT) {}
+  void addHandlerType(HandlerT) {}
   void addStructType(StructT) {}
   void addArrayType(ArrayT) {}
   void setOpen() {}
@@ -1132,6 +1157,7 @@ struct ParseTypeDefsCtx : TypeParserCtx<ParseTypeDefsCtx> {
 
   void addFuncType(SignatureT& type) { builder[index] = type; }
   void addContType(ContinuationT& type) { builder[index] = type; }
+  void addHandlerType(HandlerT& type) { builder[index] = type; }
 
   void addStructType(StructT& type) {
     auto& [fieldNames, str] = type;
@@ -2733,6 +2759,32 @@ struct ParseDefsCtx : TypeParserCtx<ParseDefsCtx> {
                            HeapType type,
                            Name tag) {
     return withLoc(pos, irBuilder.makeStackSwitch(type, tag));
+  }
+
+  Result<> makeSuspendTo(Index pos,
+                         const std::vector<Annotation>& annotations,
+                         HeapType type,
+                         Name tag) {
+    return withLoc(pos, irBuilder.makeSuspendTo(type, tag));
+  }
+
+  Result<> makeResumeWith(Index pos,
+                          const std::vector<Annotation>& annotations,
+                          HeapType type,
+                          const std::vector<OnClauseInfo>& resumetable) {
+    std::vector<Name> tags;
+    std::vector<std::optional<Index>> labels;
+    tags.reserve(resumetable.size());
+    labels.reserve(resumetable.size());
+    for (const OnClauseInfo& info : resumetable) {
+      tags.push_back(info.tag);
+      if (info.isOnSwitch) {
+        labels.push_back(std::nullopt);
+      } else {
+        labels.push_back(std::optional<Index>(info.label));
+      }
+    }
+    return withLoc(pos, irBuilder.makeResumeWith(type, tags, labels));
   }
 };
 

@@ -56,6 +56,7 @@ struct Continuation;
 struct Field;
 struct Struct;
 struct Array;
+struct Handler;
 
 using TypeList = std::vector<Type>;
 using Tuple = TypeList;
@@ -87,6 +88,7 @@ enum class HeapTypeKind {
   Struct,
   Array,
   Cont,
+  Handler,
 };
 
 class HeapType {
@@ -119,6 +121,8 @@ public:
     nofunc = 13 << UsedBits,
     nocont = 14 << UsedBits,
     noexn = 15 << UsedBits,
+    handler = 16 << UsedBits,
+    nohandler = 17 << UsedBits,
   };
   static constexpr BasicHeapType _last_basic_type =
     BasicHeapType(noexn | SharedMask);
@@ -138,6 +142,8 @@ public:
   HeapType(Signature signature);
 
   HeapType(Continuation cont);
+  HeapType(const Handler& cont);
+  HeapType(Handler&& cont);
 
   // Create a HeapType with the given structure. In equirecursive mode, this may
   // be the same as a previous HeapType created with the same contents. In
@@ -168,6 +174,7 @@ public:
   bool isBottom() const;
   bool isOpen() const;
   bool isShared() const { return getShared() == Shared; }
+  bool isHandler() const { return getKind() == HeapTypeKind::Handler; }
 
   Shareability getShared() const;
 
@@ -179,6 +186,7 @@ public:
 
   Signature getSignature() const;
   Continuation getContinuation() const;
+  Handler getHandler() const;
 
   const Struct& getStruct() const;
   Array getArray() const;
@@ -387,6 +395,7 @@ public:
   bool isContinuation() const {
     return isRef() && getHeapType().isContinuation();
   }
+  bool isHandler() const { return isRef() && getHeapType().isHandler(); }
   bool isDefaultable() const;
 
   // TODO: Allow this only for reference types.
@@ -543,6 +552,8 @@ constexpr HeapType noext = HeapType::noext;
 constexpr HeapType nofunc = HeapType::nofunc;
 constexpr HeapType nocont = HeapType::nocont;
 constexpr HeapType noexn = HeapType::noexn;
+constexpr HeapType handler = HeapType::handler;
+constexpr HeapType nohandler = HeapType::nohandler;
 
 } // namespace HeapTypes
 
@@ -591,6 +602,16 @@ struct Continuation {
     return type == other.type;
   }
   bool operator!=(const Continuation& other) const { return !(*this == other); }
+  std::string toString() const;
+};
+
+struct Handler {
+  Type value_types;
+  Handler(Type value_types) : value_types(value_types) {}
+  bool operator==(const Handler& other) const {
+    return value_types == other.value_types;
+  }
+  bool operator!=(const Handler& other) const { return !(*this == other); }
   std::string toString() const;
 };
 
@@ -692,6 +713,7 @@ struct TypeBuilder {
   void setHeapType(size_t i, const Struct& struct_);
   void setHeapType(size_t i, Struct&& struct_);
   void setHeapType(size_t i, Array array);
+  void setHeapType(size_t i, Handler handler);
 
   // Sets the heap type at index `i` to be a copy of the given heap type with
   // its referenced HeapTypes to be replaced according to the provided mapping
@@ -749,6 +771,11 @@ struct TypeBuilder {
       case HeapTypeKind::Cont:
         setHeapType(i, Continuation(map(type.getContinuation().type)));
         return;
+      case HeapTypeKind::Handler: {
+        Handler h = type.getHandler();
+        setHeapType(i, Handler(copyType(h.value_types)));
+        return;
+      }
       case HeapTypeKind::Basic:
         WASM_UNREACHABLE("unexpected kind");
     }
@@ -842,6 +869,10 @@ struct TypeBuilder {
       builder.setHeapType(index, array);
       return *this;
     }
+    Entry& operator=(Handler handler) {
+      builder.setHeapType(index, handler);
+      return *this;
+    }
     Entry& subTypeOf(std::optional<HeapType> other) {
       builder.setSubType(index, other);
       return *this;
@@ -909,12 +940,14 @@ inline bool HeapType::isBottom() const {
       case array:
       case exn:
       case string:
+      case handler:
         return false;
       case none:
       case noext:
       case nofunc:
       case nocont:
       case noexn:
+      case nohandler:
         return true;
     }
   }
@@ -936,6 +969,10 @@ public:
 template<> class hash<wasm::Continuation> {
 public:
   size_t operator()(const wasm::Continuation&) const;
+};
+template<> class hash<wasm::Handler> {
+public:
+  size_t operator()(const wasm::Handler&) const;
 };
 template<> class hash<wasm::Field> {
 public:

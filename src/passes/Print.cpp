@@ -427,6 +427,18 @@ struct PrintSExpression : public UnifiedExpressionVisitor<PrintSExpression> {
       visitExpression(curr);
     }
   }
+  void visitSuspendTo(SuspendTo* curr) {
+    if (!maybePrintUnreachableOrNullReplacement(curr, curr->handler->type) &&
+        !maybePrintUnreachableOrNullReplacement(curr, curr->type)) {
+      visitExpression(curr);
+    }
+  }
+  void visitResumeWith(ResumeWith* curr) {
+    if (!maybePrintUnreachableOrNullReplacement(curr, curr->cont->type) &&
+        !maybePrintUnreachableOrNullReplacement(curr, curr->type)) {
+      visitExpression(curr);
+    }
+  }
 
   // Module-level visitors
   void handleSignature(Function* curr, bool printImplicitNames = false);
@@ -2563,7 +2575,8 @@ struct PrintExpressionContents
   template<typename ResumeType>
   static void handleResumeTable(std::ostream& o, ResumeType* curr) {
     static_assert(std::is_base_of<ResumeType, Resume>::value ||
-                  std::is_base_of<ResumeType, ResumeThrow>::value);
+                  std::is_base_of<ResumeType, ResumeThrow>::value ||
+                  std::is_base_of<ResumeType, ResumeWith>::value);
     for (Index i = 0; i < curr->handlerTags.size(); i++) {
       o << " (";
       printMedium(o, "on ");
@@ -2605,6 +2618,21 @@ struct PrintExpressionContents
     printHeapType(curr->cont->type.getHeapType());
     o << ' ';
     curr->tag.print(o);
+  }
+  void visitSuspendTo(SuspendTo* curr) {
+    printMedium(o, "suspend_to ");
+    printHeapType(curr->handler->type.getHeapType());
+    o << ' ';
+    curr->tag.print(o);
+  }
+  void visitResumeWith(ResumeWith* curr) {
+    assert(curr->cont->type.isContinuation());
+    printMedium(o, "resume_with");
+
+    o << ' ';
+    printHeapType(curr->cont->type.getHeapType());
+
+    handleResumeTable(o, curr);
   }
 };
 

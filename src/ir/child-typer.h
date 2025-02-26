@@ -1168,6 +1168,35 @@ template<typename Subtype> struct ChildTyper : OverriddenVisitor<Subtype> {
     }
     note(&curr->cont, Type(*ct, Nullable));
   }
+
+  void visitSuspendTo(SuspendTo* curr,
+                      std::optional<HeapType> ht = std::nullopt) {
+    if (!ht.has_value()) {
+      ht = curr->handler->type.getHeapType();
+    }
+    assert(ht->isHandler());
+    auto params = wasm.getTag(curr->tag)->params();
+    assert(params.size() == curr->operands.size());
+    for (size_t i = 0; i < params.size(); ++i) {
+      note(&curr->operands[i], params[i]);
+    }
+    note(&curr->handler, Type(*ht, Nullable));
+  }
+
+  void visitResumeWith(ResumeWith* curr,
+                       std::optional<HeapType> ct = std::nullopt) {
+    if (!ct.has_value()) {
+      ct = curr->cont->type.getHeapType();
+    }
+    assert(ct->isContinuation());
+    auto params = ct->getContinuation().type.getSignature().params;
+    assert(params.size() >= 1 &&
+           ((params.size() - 1) == curr->operands.size()));
+    for (size_t i = 0; i < params.size() - 1; ++i) {
+      note(&curr->operands[i], params[i]);
+    }
+    note(&curr->cont, Type(*ct, Nullable));
+  }
 };
 
 } // namespace wasm

@@ -516,6 +516,8 @@ void TranslateToFuzzReader::setupHeapTypes() {
         break;
       case HeapTypeKind::Cont:
         WASM_UNREACHABLE("TODO: cont");
+      case HeapTypeKind::Handler:
+        WASM_UNREACHABLE("TODO: handler");
       case HeapTypeKind::Basic:
         WASM_UNREACHABLE("unexpected kind");
     }
@@ -3421,6 +3423,9 @@ Expression* TranslateToFuzzReader::makeBasicRef(Type type) {
     case HeapType::cont: {
       WASM_UNREACHABLE("not implemented");
     }
+    case HeapType::handler: {
+      WASM_UNREACHABLE("TODO: handler");
+    }
     case HeapType::any: {
       // Choose a subtype we can materialize a constant for. We cannot
       // materialize non-nullable refs to func or i31 in global contexts.
@@ -3544,6 +3549,7 @@ Expression* TranslateToFuzzReader::makeBasicRef(Type type) {
     case HeapType::noext:
     case HeapType::nofunc:
     case HeapType::nocont:
+    case HeapType::nohandler:
     case HeapType::noexn: {
       auto null = builder.makeRefNull(heapType.getBasic(share));
       if (!type.isNullable()) {
@@ -3649,6 +3655,8 @@ Expression* TranslateToFuzzReader::makeCompoundRef(Type type) {
     }
     case HeapTypeKind::Cont:
       WASM_UNREACHABLE("TODO: cont");
+    case HeapTypeKind::Handler:
+      WASM_UNREACHABLE("TODO: handler");
     case HeapTypeKind::Basic:
       break;
   }
@@ -5345,6 +5353,8 @@ HeapType TranslateToFuzzReader::getSubType(HeapType type) {
           .getBasic(share);
       case HeapType::cont:
         return pick(HeapTypes::cont, HeapTypes::nocont).getBasic(share);
+      case HeapType::handler:
+        return pick(HeapTypes::handler, HeapTypes::nohandler).getBasic(share);
       case HeapType::ext:
         return pick(FeatureOptions<HeapType>()
                       .add(FeatureSet::ReferenceTypes, HeapType::ext)
@@ -5392,6 +5402,7 @@ HeapType TranslateToFuzzReader::getSubType(HeapType type) {
       case HeapType::nofunc:
       case HeapType::nocont:
       case HeapType::noexn:
+      case HeapType::nohandler:
         break;
     }
   }
