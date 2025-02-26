@@ -496,6 +496,10 @@ fuzztest::Domain<HeapTypePlan> AvailableStrictSubHeapType(TypeBuilderPlan plan,
         return matchingOrAbstract(
           [](auto kind) { return kind == ContKind; },
           fuzztest::Just(HeapType(HeapTypes::nocont.getBasic(share))));
+      case HeapType::handler:
+        return matchingOrAbstract(
+          [](auto kind) { return kind == HandlerKind; },
+          fuzztest::Just(HeapType(HeapTypes::nocont.getBasic(share))));
       case HeapType::any:
         return matchingOrAbstract(
           [](auto kind) { return kind == StructKind || kind == ArrayKind; },
@@ -532,6 +536,7 @@ fuzztest::Domain<HeapTypePlan> AvailableStrictSubHeapType(TypeBuilderPlan plan,
       case HeapType::nofunc:
       case HeapType::nocont:
       case HeapType::noexn:
+      case HeapType::nohandler:
         // No strict subtypes, so just return super.
         return fuzztest::Just(super);
     }
@@ -586,6 +591,7 @@ AvailableStrictSuperHeapType(TypeBuilderPlan plan, HeapTypePlan sub) {
       case HeapType::cont:
       case HeapType::any:
       case HeapType::exn:
+      case HeapType::handler:
         // No strict supertypes, so just return sub.
         return fuzztest::Just(sub);
       case HeapType::eq:
@@ -617,6 +623,10 @@ AvailableStrictSuperHeapType(TypeBuilderPlan plan, HeapTypePlan sub) {
         return matchingOrAbstract(
           [](auto kind) { return kind == ContKind; },
           fuzztest::Just(HeapType(HeapTypes::cont.getBasic(share))));
+      case HeapType::nohandler:
+        return matchingOrAbstract(
+          [](auto kind) { return kind == HandlerKind; },
+          fuzztest::Just(HeapType(HeapTypes::handler.getBasic(share))));
       case HeapType::noexn:
         return fuzztest::Just(
           HeapTypePlan{HeapType(HeapTypes::exn.getBasic(share))});
@@ -1134,6 +1144,15 @@ void TestBuiltTypes(std::pair<std::vector<HeapType>, TypeBuilderPlan> pair) {
     }
   };
 
+  auto checkHandler = [&](HandlerPlan& plan, HeapType type) {
+    ASSERT_TRUE(type.isHandler());
+    auto value_types = type.getHandler().value_types;
+    ASSERT_EQ(plan.size(), value_types.size());
+    for (size_t i = 0; i < plan.size(); ++i) {
+      checkType(plan[i], value_types[i]);
+    }
+  };
+
   auto checkDef = [&](TypeDefPlan& plan, HeapType type) {
     if (auto* f = plan.getFunc()) {
       checkFunc(*f, type);
@@ -1143,6 +1162,8 @@ void TestBuiltTypes(std::pair<std::vector<HeapType>, TypeBuilderPlan> pair) {
       checkArray(*a, type);
     } else if (auto* c = plan.getCont()) {
       checkCont(*c, type);
+    } else if (auto* h = plan.getHandler()) {
+      checkCont(*h, type);
     } else {
       WASM_UNREACHABLE("unexpected variant");
     }
