@@ -1104,6 +1104,29 @@ private:
         parent.throws_ = true;
       }
     }
+    void visitResumeWith(ResumeWith* curr) {
+      // This acts as a kitchen sink effect.
+      parent.calls = true;
+
+      // resume instructions accept nullable continuation references and trap
+      // on null.
+      parent.implicitTrap = true;
+
+      if (parent.features.hasExceptionHandling() && parent.tryDepth == 0) {
+        parent.throws_ = true;
+      }
+    }
+    void visitSuspendTo(SuspendTo* curr) {
+      // Similar to resume/call: Suspending means that we execute arbitrary
+      // other code before we may resume here.
+      parent.calls = true;
+      if (parent.features.hasExceptionHandling() && parent.tryDepth == 0) {
+        parent.throws_ = true;
+      }
+
+      // A suspend may go unhandled and therefore trap.
+      parent.implicitTrap = true;
+    }
   };
 
 public:

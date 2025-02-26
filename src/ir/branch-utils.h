@@ -96,6 +96,13 @@ void operateOnScopeNameUsesAndSentTypes(Expression* expr, T func) {
           func(name, r->sentTypes[i]);
         }
       }
+    } else if (auto* r = expr->dynCast<ResumeWith>()) {
+      for (Index i = 0; i < r->handlerTags.size(); i++) {
+        auto dest = r->handlerTags[i];
+        if (!dest.isNull() && dest == name) {
+          func(name, r->sentTypes[i]);
+        }
+      }
     } else {
       assert(expr->is<Try>() || expr->is<Rethrow>()); // delegate or rethrow
     }

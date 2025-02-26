@@ -572,6 +572,8 @@ bool shapeEq(HeapType a, HeapType b) {
       return shapeEq(a.getArray(), b.getArray());
     case HeapTypeKind::Cont:
       WASM_UNREACHABLE("TODO: cont");
+    case HeapTypeKind::Handler:
+      WASM_UNREACHABLE("TODO: handler");
     case HeapTypeKind::Basic:
       WASM_UNREACHABLE("unexpected kind");
   }
@@ -595,6 +597,8 @@ size_t shapeHash(HeapType a) {
       return digest;
     case HeapTypeKind::Cont:
       WASM_UNREACHABLE("TODO: cont");
+    case HeapTypeKind::Handler:
+      WASM_UNREACHABLE("TODO: handler");
     case HeapTypeKind::Basic:
       break;
   }

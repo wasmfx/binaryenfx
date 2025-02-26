@@ -2728,6 +2728,33 @@ void BinaryInstWriter::visitStackSwitch(StackSwitch* curr) {
   o << U32LEB(parent.getTagIndex(curr->tag));
 }
 
+void BinaryInstWriter::visitResumeWith(ResumeWith* curr) {
+  assert(curr->cont->type.isContinuation());
+  o << int8_t(BinaryConsts::ResumeWith);
+  parent.writeIndexedHeapType(curr->cont->type.getHeapType());
+
+  size_t handlerNum = curr->handlerTags.size();
+  o << U32LEB(handlerNum);
+  for (size_t i = 0; i < handlerNum; i++) {
+    if (curr->handlerBlocks[i].isNull()) {
+      // on switch
+      o << int8_t(BinaryConsts::OnSwitch)
+        << U32LEB(parent.getTagIndex(curr->handlerTags[i]));
+    } else {
+      // on label
+      o << int8_t(BinaryConsts::OnLabel)
+        << U32LEB(parent.getTagIndex(curr->handlerTags[i]))
+        << U32LEB(getBreakIndex(curr->handlerBlocks[i]));
+    }
+  }
+}
+
+void BinaryInstWriter::visitSuspendTo(SuspendTo* curr) {
+  o << int8_t(BinaryConsts::SuspendTo);
+  parent.writeIndexedHeapType(curr->handler->type.getHeapType());
+  o << U32LEB(parent.getTagIndex(curr->tag));
+}
+
 void BinaryInstWriter::emitScopeEnd(Expression* curr) {
   assert(!breakStack.empty());
   breakStack.pop_back();

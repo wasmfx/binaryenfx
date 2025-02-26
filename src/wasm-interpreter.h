@@ -2627,6 +2627,8 @@ public:
   Flow visitStackSwitch(StackSwitch* curr) {
     WASM_UNREACHABLE("unimplemented");
   }
+  Flow visitResumeWith(ResumeWith* curr) { WASM_UNREACHABLE("unimplemented"); }
+  Flow visitSuspendTo(SuspendTo* curr) { WASM_UNREACHABLE("unimplemented"); }
 
   void trap(const char* why) override { throw NonconstantException(); }
 
@@ -4342,6 +4344,8 @@ public:
   Flow visitResume(Resume* curr) { return Flow(NONCONSTANT_FLOW); }
   Flow visitResumeThrow(ResumeThrow* curr) { return Flow(NONCONSTANT_FLOW); }
   Flow visitStackSwitch(StackSwitch* curr) { return Flow(NONCONSTANT_FLOW); }
+  Flow visitSuspendTo(SuspendTo* curr) { return Flow(NONCONSTANT_FLOW); }
+  Flow visitResumeWith(ResumeWith* curr) { return Flow(NONCONSTANT_FLOW); }
 
   void trap(const char* why) override { externalInterface->trap(why); }
 

@@ -813,6 +813,21 @@ struct CostAnalyzer : public OverriddenVisitor<CostAnalyzer, CostType> {
     }
     return ret;
   }
+  CostType visitResumeWith(ResumeWith* curr) {
+    // Inspired by indirect calls, but twice the cost.
+    CostType ret = 12 + visit(curr->cont);
+    for (auto* arg : curr->operands) {
+      ret += visit(arg);
+    }
+    return ret;
+  }
+  CostType visitSuspendTo(SuspendTo* curr) {
+    CostType ret = 12 + visit(curr->handler);
+    for (auto* arg : curr->operands) {
+      ret += visit(arg);
+    }
+    return ret;
+  }
 
 private:
   CostType nullCheckCost(Expression* ref) {
