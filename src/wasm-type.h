@@ -606,10 +606,10 @@ struct Continuation {
 };
 
 struct Handler {
-  Type value_types;
-  Handler(Type value_types) : value_types(value_types) {}
+  Type results;
+  Handler(Type results) : results(results) {}
   bool operator==(const Handler& other) const {
-    return value_types == other.value_types;
+    return results == other.results;
   }
   bool operator!=(const Handler& other) const { return !(*this == other); }
   std::string toString() const;
@@ -773,7 +773,7 @@ struct TypeBuilder {
         return;
       case HeapTypeKind::Handler: {
         Handler h = type.getHandler();
-        setHeapType(i, Handler(copyType(h.value_types)));
+        setHeapType(i, Handler(copyType(h.results)));
         return;
       }
       case HeapTypeKind::Basic:

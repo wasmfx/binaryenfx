@@ -121,7 +121,7 @@ template<typename CompareTypes> struct RecGroupComparator {
   }
 
   Comparison compare(Handler a, Handler b) {
-    return compare(a.value_types, b.value_types);
+    return compare(a.results, b.results);
   }
 
   Comparison compare(Field a, Field b) {
@@ -278,7 +278,7 @@ struct RecGroupHasher {
 
   size_t hash(Continuation cont) { return hash(cont.type); }
 
-  size_t hash(Handler handler) { return hash(handler.value_types); }
+  size_t hash(Handler handler) { return hash(handler.results); }
 
   size_t hash(Field field) {
     size_t digest = wasm::hash(field.mutable_);

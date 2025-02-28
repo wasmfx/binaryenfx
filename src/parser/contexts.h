@@ -148,7 +148,7 @@ struct NullTypeParserCtx {
 
   SignatureT makeFuncType(ParamsT*, ResultsT*) { return Ok{}; }
   ContinuationT makeContType(HeapTypeT) { return Ok{}; }
-  HandlerT makeHandlerType(TypeT) { return Ok{}; }
+  HandlerT makeHandlerType(ResultsT*) { return Ok{}; }
 
   StorageT makeI8() { return Ok{}; }
   StorageT makeI16() { return Ok{}; }
@@ -298,7 +298,11 @@ template<typename Ctx> struct TypeParserCtx {
   }
 
   ContinuationT makeContType(HeapTypeT ft) { return Continuation(ft); }
-  HandlerT makeHandlerType(TypeT type) { return Handler(type); }
+  HandlerT makeHandlerType(ResultsT* results) {
+    std::vector<Type> empty;
+    const auto& resultTypes = results ? *results : empty;
+    return Handler(self().makeTupleType(resultTypes));
+  }
 
   StorageT makeI8() { return Field(Field::i8, Immutable); }
   StorageT makeI16() { return Field(Field::i16, Immutable); }

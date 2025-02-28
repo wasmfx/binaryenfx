@@ -318,9 +318,9 @@ void WasmBinaryWriter::writeTypes() {
         break;
       case HeapTypeKind::Handler: {
         o << uint8_t(BinaryConsts::EncodedType::Handler);
-        auto value_types = type.getHandler().value_types;
-        o << U32LEB(value_types.size());
-        for (const auto& type : value_types) {
+        auto results = type.getHandler().results;
+        o << U32LEB(results.size());
+        for (const auto& type : results) {
           writeType(type);
         }
         break;

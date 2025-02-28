@@ -300,7 +300,7 @@ protected:
         taskList.push_back(Task::scan(&info->array.element.type));
         break;
       case HeapTypeKind::Handler:
-        taskList.push_back(Task::scan(&info->handler.value_types));
+        taskList.push_back(Task::scan(&info->handler.results));
         break;
       case HeapTypeKind::Basic:
         WASM_UNREACHABLE("unexpected kind");
@@ -1185,7 +1185,7 @@ std::vector<Type> HeapType::getTypeChildren() const {
       return {};
     case HeapTypeKind::Handler: {
       std::vector<Type> children;
-      for (auto t : getHandler().value_types) {
+      for (auto t : getHandler().results) {
         children.push_back(t);
       }
       return children;
@@ -1624,7 +1624,7 @@ bool SubTyper::isSubType(const Continuation& a, const Continuation& b) {
 }
 
 bool SubTyper::isSubType(const Handler& a, const Handler& b) {
-  return isSubType(a.value_types, b.value_types);
+  return isSubType(a.results, b.results);
 }
 
 bool SubTyper::isSubType(const Struct& a, const Struct& b) {
@@ -1938,7 +1938,7 @@ std::ostream& TypePrinter::print(const Continuation& continuation) {
 
 std::ostream& TypePrinter::print(const Handler& handler) {
   os << "(handler";
-  for (Type t : handler.value_types) {
+  for (Type t : handler.results) {
     os << ' ';
     print(t);
   }
@@ -2082,7 +2082,7 @@ size_t RecGroupHasher::hash(const Continuation& continuation) const {
 
 size_t RecGroupHasher::hash(const Handler& handler) const {
   size_t magic = 0xe05a2;
-  size_t digest = hash(handler.value_types);
+  size_t digest = hash(handler.results);
   rehash(digest, magic);
   return digest;
 }
@@ -2214,7 +2214,7 @@ bool RecGroupEquator::eq(const Continuation& a, const Continuation& b) const {
 }
 
 bool RecGroupEquator::eq(const Handler& a, const Handler& b) const {
-  return eq(a.value_types, b.value_types);
+  return eq(a.results, b.results);
 }
 
 bool RecGroupEquator::eq(const Struct& a, const Struct& b) const {

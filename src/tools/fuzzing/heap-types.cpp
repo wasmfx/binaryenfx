@@ -1070,7 +1070,7 @@ bool isUninhabitable(HeapType type,
       }
       break;
     case HeapTypeKind::Handler:
-      if (isUninhabitable(type.getHandler().value_types, visited, visiting)) {
+      if (isUninhabitable(type.getHandler().results, visited, visiting)) {
         return true;
       }
       break;

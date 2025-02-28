@@ -12,7 +12,7 @@
 (module
  ;; CHECK-TEXT:      (type $ht (handler i32 i32 i64 f32))
  ;; CHECK-BIN:      (type $ht (handler i32 i32 i64 f32))
- (type $ht (handler i32 i32 i64 f32))
+ (type $ht (handler (result i32 i32 i64 f32)))
  (type $ft (func (param (ref $ht))))
  (type $ct (cont $ft))
 

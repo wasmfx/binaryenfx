@@ -10,35 +10,66 @@
 ;; RUN: cat %t.bin.nodebug.wast | filecheck %s --check-prefix=CHECK-BIN-NODEBUG
 
 (module
-  ;; CHECK-TEXT:      (type $ht (handler i32))
-  ;; CHECK-BIN:      (type $ht (handler i32))
-  (type $ht (handler i32))
+  ;; CHECK-TEXT:      (type $ht-1 (handler i32))
+  ;; CHECK-BIN:      (type $ht-1 (handler i32))
+  (type $ht-1 (handler (result i32)))
+  ;; CHECK-TEXT:      (type $ht-2 (handler))
+  ;; CHECK-BIN:      (type $ht-2 (handler))
+  (type $ht-2 (handler))
 
-  (func (export "main") (param (ref $ht))
+  (func (export "main-1") (param (ref $ht-1))
+    (unreachable))
+  (func (export "main=2") (param (ref $ht-2))
     (unreachable))
 )
-;; CHECK-TEXT:      (type $1 (func (param (ref $ht))))
+;; CHECK-TEXT:      (type $2 (func (param (ref $ht-1))))
 
-;; CHECK-TEXT:      (export "main" (func $0))
+;; CHECK-TEXT:      (type $3 (func (param (ref $ht-2))))
 
-;; CHECK-TEXT:      (func $0 (type $1) (param $0 (ref $ht))
+;; CHECK-TEXT:      (export "main-1" (func $0))
+
+;; CHECK-TEXT:      (export "main=2" (func $1))
+
+;; CHECK-TEXT:      (func $0 (type $2) (param $0 (ref $ht-1))
 ;; CHECK-TEXT-NEXT:  (unreachable)
 ;; CHECK-TEXT-NEXT: )
 
-;; CHECK-BIN:      (type $1 (func (param (ref $ht))))
+;; CHECK-TEXT:      (func $1 (type $3) (param $0 (ref $ht-2))
+;; CHECK-TEXT-NEXT:  (unreachable)
+;; CHECK-TEXT-NEXT: )
 
-;; CHECK-BIN:      (export "main" (func $0))
+;; CHECK-BIN:      (type $2 (func (param (ref $ht-1))))
 
-;; CHECK-BIN:      (func $0 (type $1) (param $0 (ref $ht))
+;; CHECK-BIN:      (type $3 (func (param (ref $ht-2))))
+
+;; CHECK-BIN:      (export "main-1" (func $0))
+
+;; CHECK-BIN:      (export "main=2" (func $1))
+
+;; CHECK-BIN:      (func $0 (type $2) (param $0 (ref $ht-1))
+;; CHECK-BIN-NEXT:  (unreachable)
+;; CHECK-BIN-NEXT: )
+
+;; CHECK-BIN:      (func $1 (type $3) (param $0 (ref $ht-2))
 ;; CHECK-BIN-NEXT:  (unreachable)
 ;; CHECK-BIN-NEXT: )
 
 ;; CHECK-BIN-NODEBUG:      (type $0 (handler i32))
 
-;; CHECK-BIN-NODEBUG:      (type $1 (func (param (ref $0))))
+;; CHECK-BIN-NODEBUG:      (type $1 (handler))
 
-;; CHECK-BIN-NODEBUG:      (export "main" (func $0))
+;; CHECK-BIN-NODEBUG:      (type $2 (func (param (ref $0))))
 
-;; CHECK-BIN-NODEBUG:      (func $0 (type $1) (param $0 (ref $0))
+;; CHECK-BIN-NODEBUG:      (type $3 (func (param (ref $1))))
+
+;; CHECK-BIN-NODEBUG:      (export "main-1" (func $0))
+
+;; CHECK-BIN-NODEBUG:      (export "main=2" (func $1))
+
+;; CHECK-BIN-NODEBUG:      (func $0 (type $2) (param $0 (ref $0))
+;; CHECK-BIN-NODEBUG-NEXT:  (unreachable)
+;; CHECK-BIN-NODEBUG-NEXT: )
+
+;; CHECK-BIN-NODEBUG:      (func $1 (type $3) (param $0 (ref $1))
 ;; CHECK-BIN-NODEBUG-NEXT:  (unreachable)
 ;; CHECK-BIN-NODEBUG-NEXT: )

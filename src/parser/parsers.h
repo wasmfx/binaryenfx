@@ -698,14 +698,14 @@ MaybeResult<typename Ctx::HandlerT> handlertype(Ctx& ctx) {
     return {};
   }
 
-  auto elems = ctx.makeTupleElemList();
-  while (!ctx.in.takeRParen()) {
-    auto type = valtype(ctx);
-    CHECK_ERR(type);
-    ctx.appendTupleElem(elems, *type);
+  auto parsedResults = results(ctx);
+  CHECK_ERR(parsedResults);
+
+  if (!ctx.in.takeRParen()) {
+    return ctx.in.err("expected end of handler name type");
   }
 
-  return ctx.makeHandlerType(ctx.makeTupleType(elems));
+  return ctx.makeHandlerType(parsedResults.getPtr());
 }
 
 // storagetype ::= valtype | packedtype
