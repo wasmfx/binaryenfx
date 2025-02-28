@@ -114,6 +114,19 @@ void printCont(std::ostream& o, ContPlan& plan) {
   o << ")";
 }
 
+void printHandler(std::ostream& o, HandlerPlan& plan) {
+  o << "(handler ";
+  if (!plan.empty()) {
+    o << " (result";
+    for (auto& type : plan) {
+      o << " ";
+      printType(o, type);
+    }
+    o << ")";
+  }
+  o << ")";
+}
+
 void printTypeDef(std::ostream& o, const TypeBuilderPlan& plan, size_t i) {
   auto def = plan.defs[i];
   auto super = plan.supertypes[i];
@@ -137,6 +150,8 @@ void printTypeDef(std::ostream& o, const TypeBuilderPlan& plan, size_t i) {
     printArray(o, *array);
   } else if (auto* cont = def.getCont()) {
     printCont(o, *cont);
+  } else if (auto* handler = def.getHandler()) {
+    printHandler(o, *handler);
   } else {
     WASM_UNREACHABLE("unexpected kind");
   }
@@ -906,7 +921,7 @@ fuzztest::Domain<ContPlan> SubContDef(TypeBuilderPlan plan, ContPlan super) {
 fuzztest::Domain<HandlerPlan> HandlerDef(TypeBuilderPlan plan) {
   auto results = fuzztest::VectorOf(AvailableType(std::move(plan)))
                    .WithMaxSize(MaxResultsSize);
-  return fuzztest::Just(results);
+  return results;
 }
 
 fuzztest::Domain<HandlerPlan> SubHandlerDef(TypeBuilderPlan plan,
@@ -915,8 +930,8 @@ fuzztest::Domain<HandlerPlan> SubHandlerDef(TypeBuilderPlan plan,
     [plan = std::move(plan)](TypePlan type) {
       return AvailableSubType(std::move(plan), type);
     },
-    super.second);
-  return fuzztest::Just(results);
+    super);
+  return results;
 }
 
 fuzztest::Domain<TypeBuilderPlan> StepTypeDefinition(TypeBuilderPlan plan);
