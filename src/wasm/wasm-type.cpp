@@ -1734,8 +1734,8 @@ std::ostream& TypePrinter::print(Type type) {
           os << "nullexnref";
           break;
         case HeapType::nohandler:
-           os << "nullhandlerref";
-           break;
+          os << "nullhandlerref";
+          break;
         case HeapType::handler:
           os << "handlerref";
           break;
