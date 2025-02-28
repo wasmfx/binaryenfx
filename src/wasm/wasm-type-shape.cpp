@@ -86,6 +86,9 @@ template<typename CompareTypes> struct RecGroupComparator {
       case HeapTypeKind::Cont:
         assert(a.isContinuation() && b.isContinuation());
         return compare(a.getContinuation(), b.getContinuation());
+      case HeapTypeKind::Handler:
+        assert(a.isHandler() && b.isHandler());
+        return compare(a.getHandler(), b.getHandler());
       case HeapTypeKind::Basic:
         break;
     }
@@ -115,6 +118,10 @@ template<typename CompareTypes> struct RecGroupComparator {
 
   Comparison compare(Continuation a, Continuation b) {
     return compare(a.type, b.type);
+  }
+
+  Comparison compare(Handler a, Handler b) {
+    return compare(a.results, b.results);
   }
 
   Comparison compare(Field a, Field b) {
@@ -242,6 +249,11 @@ struct RecGroupHasher {
         wasm::rehash(digest, 2381496927);
         hash_combine(digest, hash(type.getContinuation()));
         return digest;
+      case HeapTypeKind::Handler:
+        assert(type.isHandler());
+        wasm::rehash(digest, 5241904230);
+        hash_combine(digest, hash(type.getHandler()));
+        return digest;
       case HeapTypeKind::Basic:
         break;
     }
@@ -265,6 +277,8 @@ struct RecGroupHasher {
   size_t hash(Array array) { return hash(array.element); }
 
   size_t hash(Continuation cont) { return hash(cont.type); }
+
+  size_t hash(Handler handler) { return hash(handler.results); }
 
   size_t hash(Field field) {
     size_t digest = wasm::hash(field.mutable_);

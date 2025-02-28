@@ -1256,6 +1256,30 @@ public:
     ret->finalize();
     return ret;
   }
+  SuspendTo* makeSuspendTo(Name tag,
+                           Expression* handler,
+                           const std::vector<Expression*>& args) {
+    auto* ret = wasm.allocator.alloc<SuspendTo>();
+    ret->tag = tag;
+    ret->handler = handler;
+    ret->operands.set(args);
+    ret->finalize(&wasm);
+    return ret;
+  }
+  ResumeWith* makeResumeWith(const std::vector<Name>& handlerTags,
+                             const std::vector<Name>& handlerBlocks,
+                             const std::vector<Type>& sentTypes,
+                             ExpressionList&& operands,
+                             Expression* cont) {
+    auto* ret = wasm.allocator.alloc<ResumeWith>();
+    ret->handlerTags.set(handlerTags);
+    ret->handlerBlocks.set(handlerBlocks);
+    ret->sentTypes.set(sentTypes);
+    ret->operands = std::move(operands);
+    ret->cont = cont;
+    ret->finalize();
+    return ret;
+  }
 
   // Additional helpers
 
