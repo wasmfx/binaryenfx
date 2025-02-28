@@ -982,7 +982,7 @@ fuzztest::Domain<TypeBuilderPlan> StepTypeDefinition(TypeBuilderPlan plan) {
       return fuzztest::FlatMap(
         AppendTypeDef<ContPlan>, fuzztest::Just(std::move(plan)), def);
     }
-    case ContKind: {
+    case HandlerKind: {
       auto def = super ? SubHandlerDef(plan, *plan.defs[*super].getHandler())
                        : HandlerDef(plan);
       return fuzztest::FlatMap(
