@@ -104,6 +104,8 @@ unfuzzable = [
     'stack_switching_named.wast',
     'stack_switching_suspend_to.wast',
     'stack_switching_resume_with.wast',
+    # TODO: fuzzer support for exact references
+    'exact-references.wast',
 ]
 
 
