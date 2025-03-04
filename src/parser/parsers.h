@@ -502,7 +502,7 @@ MaybeResult<typename Ctx::TypeT> maybeReftypeAbbrev(Ctx& ctx) {
     return ctx.makeRefType(ctx.makeContType(Unshared), Nullable, Inexact);
   }
   if (ctx.in.takeKeyword("handlerref"sv)) {
-    return ctx.makeRefType(ctx.makeHandlerType(Unshared), Nullable);
+    return ctx.makeRefType(ctx.makeHandlerType(Unshared), Nullable, Inexact);
   }
   if (ctx.in.takeKeyword("nullref"sv)) {
     return ctx.makeRefType(ctx.makeNoneType(Unshared), Nullable, Inexact);
@@ -518,6 +518,9 @@ MaybeResult<typename Ctx::TypeT> maybeReftypeAbbrev(Ctx& ctx) {
   }
   if (ctx.in.takeKeyword("nullcontref"sv)) {
     return ctx.makeRefType(ctx.makeNocontType(Unshared), Nullable, Inexact);
+  }
+  if (ctx.in.takeKeyword("nullhandlerref"sv)) {
+    return ctx.makeRefType(ctx.makeNohandlerType(Unshared), Nullable, Inexact);
   }
   return {};
 }
@@ -536,9 +539,6 @@ template<typename Ctx> MaybeResult<typename Ctx::TypeT> maybeReftype(Ctx& ctx) {
       return ctx.in.err("expected end of reftype");
     }
     return ctx.makeRefType(ctx.getHeapTypeFromRefType(*rt), Nullable, Exact);
-  }
-  if (ctx.in.takeKeyword("nullhandlerref"sv)) {
-    return ctx.makeRefType(ctx.makeNohandlerType(Unshared), Nullable);
   }
 
   if (ctx.in.takeSExprStart("ref"sv)) {

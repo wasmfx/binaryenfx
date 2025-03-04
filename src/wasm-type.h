@@ -125,7 +125,7 @@ public:
     nohandler = 17 << UsedBits,
   };
   static constexpr BasicHeapType _last_basic_type =
-    BasicHeapType(noexn | SharedMask);
+    BasicHeapType(nohandler | SharedMask);
 
   // BasicHeapType can be implicitly upgraded to HeapType
   constexpr HeapType(BasicHeapType id) : id(id) {}
