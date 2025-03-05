@@ -1453,8 +1453,11 @@ void SuspendTo::finalize(Module* wasm) {
   }
 
   if (!handleUnreachableOperands(this) && wasm) {
-    auto tag = wasm->getTag(this->tag);
-    type = tag->results();
+    auto tag_results = wasm->getTag(this->tag)->results();
+    Tuple results{};
+    results.assign(tag_results.begin(), tag_results.end());
+    results.push_back(handler->type);
+    type = Type(results);
   }
 }
 
