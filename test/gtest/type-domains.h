@@ -31,6 +31,7 @@ inline fuzztest::Domain<HeapType> ArbitraryUnsharedAbstractHeapType() {
     HeapTypes::ext,
     HeapTypes::func,
     HeapTypes::cont,
+    HeapTypes::handler,
     HeapTypes::any,
     HeapTypes::eq,
     HeapTypes::i31,
@@ -43,6 +44,7 @@ inline fuzztest::Domain<HeapType> ArbitraryUnsharedAbstractHeapType() {
     HeapTypes::nofunc,
     HeapTypes::nocont,
     HeapTypes::noexn,
+    HeapTypes::nohandler,
   });
 }
 
@@ -67,7 +69,13 @@ inline fuzztest::Domain<Type> ArbitraryNonRefType() {
     std::vector<Type>{Type::i32, Type::i64, Type::f32, Type::f64, Type::v128});
 }
 
-enum UnsharedTypeKind { FuncKind, StructKind, ArrayKind, ContKind };
+enum UnsharedTypeKind {
+  FuncKind,
+  StructKind,
+  ArrayKind,
+  ContKind,
+  HandlerKind
+};
 
 struct TypeKind {
   UnsharedTypeKind kind;
@@ -108,12 +116,15 @@ using ArrayPlan = FieldPlan;
 // If there is no available func type definition, this will be nullopt and we
 // will have to use a default fallback.
 using ContPlan = std::optional<size_t>;
+using HandlerPlan = std::vector<TypePlan>;
 
-struct TypeDefPlan : std::variant<FuncPlan, StructPlan, ArrayPlan, ContPlan> {
+struct TypeDefPlan
+  : std::variant<FuncPlan, StructPlan, ArrayPlan, ContPlan, HandlerPlan> {
   FuncPlan* getFunc() { return std::get_if<FuncPlan>(this); }
   StructPlan* getStruct() { return std::get_if<StructPlan>(this); }
   ArrayPlan* getArray() { return std::get_if<ArrayPlan>(this); }
   ContPlan* getCont() { return std::get_if<ContPlan>(this); }
+  HandlerPlan* getHandler() { return std::get_if<HandlerPlan>(this); }
 };
 
 struct TypeBuilderPlan {

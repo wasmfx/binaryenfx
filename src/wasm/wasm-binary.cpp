@@ -316,6 +316,15 @@ void WasmBinaryWriter::writeTypes() {
         o << uint8_t(BinaryConsts::EncodedType::Cont);
         writeHeapType(type.getContinuation().type);
         break;
+      case HeapTypeKind::Handler: {
+        o << uint8_t(BinaryConsts::EncodedType::Handler);
+        auto results = type.getHandler().results;
+        o << U32LEB(results.size());
+        for (const auto& type : results) {
+          writeType(type);
+        }
+        break;
+      }
       case HeapTypeKind::Basic:
         WASM_UNREACHABLE("unexpected kind");
     }
@@ -1594,6 +1603,9 @@ void WasmBinaryWriter::writeType(Type type) {
         case HeapType::cont:
           o << S32LEB(BinaryConsts::EncodedType::contref);
           return;
+        case HeapType::handler:
+          o << S32LEB(BinaryConsts::EncodedType::handlerref);
+          return;
         case HeapType::eq:
           o << S32LEB(BinaryConsts::EncodedType::eqref);
           return;
@@ -1626,6 +1638,9 @@ void WasmBinaryWriter::writeType(Type type) {
           return;
         case HeapType::nocont:
           o << S32LEB(BinaryConsts::EncodedType::nullcontref);
+          return;
+        case HeapType::nohandler:
+          o << S32LEB(BinaryConsts::EncodedType::nullhandlerref);
           return;
       }
     }
@@ -1692,6 +1707,9 @@ void WasmBinaryWriter::writeHeapType(HeapType type) {
     case HeapType::cont:
       ret = BinaryConsts::EncodedHeapType::cont;
       break;
+    case HeapType::handler:
+      ret = BinaryConsts::EncodedHeapType::handler;
+      break;
     case HeapType::any:
       ret = BinaryConsts::EncodedHeapType::any;
       break;
@@ -1727,6 +1745,9 @@ void WasmBinaryWriter::writeHeapType(HeapType type) {
       break;
     case HeapType::nocont:
       ret = BinaryConsts::EncodedHeapType::nocont;
+      break;
+    case HeapType::nohandler:
+      ret = BinaryConsts::EncodedHeapType::nohandler;
       break;
   }
   o << S64LEB(ret); // TODO: Actually s33
@@ -2059,6 +2080,9 @@ bool WasmBinaryReader::getBasicType(int32_t code, Type& out) {
     case BinaryConsts::EncodedType::contref:
       out = Type(HeapType::cont, Nullable);
       return true;
+    case BinaryConsts::EncodedType::handlerref:
+      out = Type(HeapType::handler, Nullable);
+      return true;
     case BinaryConsts::EncodedType::externref:
       out = Type(HeapType::ext, Nullable);
       return true;
@@ -2098,6 +2122,9 @@ bool WasmBinaryReader::getBasicType(int32_t code, Type& out) {
     case BinaryConsts::EncodedType::nullcontref:
       out = Type(HeapType::nocont, Nullable);
       return true;
+    case BinaryConsts::EncodedType::nullhandlerref:
+      out = Type(HeapType::nohandler, Nullable);
+      return true;
     default:
       return false;
   }
@@ -2110,6 +2137,9 @@ bool WasmBinaryReader::getBasicHeapType(int64_t code, HeapType& out) {
       return true;
     case BinaryConsts::EncodedHeapType::cont:
       out = HeapType::cont;
+      return true;
+    case BinaryConsts::EncodedHeapType::handler:
+      out = HeapType::handler;
       return true;
     case BinaryConsts::EncodedHeapType::ext:
       out = HeapType::ext;
@@ -2149,6 +2179,9 @@ bool WasmBinaryReader::getBasicHeapType(int64_t code, HeapType& out) {
       return true;
     case BinaryConsts::EncodedHeapType::nocont:
       out = HeapType::nocont;
+      return true;
+    case BinaryConsts::EncodedHeapType::nohandler:
+      out = HeapType::nohandler;
       return true;
     default:
       return false;
@@ -2415,6 +2448,15 @@ void WasmBinaryReader::readTypes() {
     return Continuation(ht);
   };
 
+  auto readHandlerDef = [&]() {
+    std::vector<Type> params;
+    size_t numParams = getU32LEB();
+    for (size_t j = 0; j < numParams; j++) {
+      params.push_back(readType());
+    }
+    return Handler(builder.getTempTupleType(params));
+  };
+
   auto readMutability = [&]() {
     switch (getU32LEB()) {
       case 0:
@@ -2495,6 +2537,8 @@ void WasmBinaryReader::readTypes() {
       builder[i] = readStructDef();
     } else if (form == BinaryConsts::EncodedType::Array) {
       builder[i] = Array(readFieldDef());
+    } else if (form == BinaryConsts::EncodedType::Handler) {
+      builder[i] = readHandlerDef();
     } else {
       throwError("Bad type form " + std::to_string(form));
     }
@@ -3120,6 +3164,31 @@ Result<> WasmBinaryReader::readInst() {
       auto type = getIndexedHeapType();
       auto tag = getTagName(getU32LEB());
       return builder.makeStackSwitch(type, tag);
+    }
+    case BinaryConsts::SuspendTo: {
+      auto type = getIndexedHeapType();
+      return builder.makeSuspendTo(type, getTagName(getU32LEB()));
+    }
+    case BinaryConsts::ResumeWith: {
+      auto type = getIndexedHeapType();
+      auto numHandlers = getU32LEB();
+      std::vector<Name> tags;
+      std::vector<std::optional<Index>> labels;
+      tags.reserve(numHandlers);
+      labels.reserve(numHandlers);
+      for (Index i = 0; i < numHandlers; ++i) {
+        uint8_t code = getInt8();
+        if (code == BinaryConsts::OnLabel) {
+          tags.push_back(getTagName(getU32LEB()));
+          labels.push_back(std::optional<Index>{getU32LEB()});
+        } else if (code == BinaryConsts::OnSwitch) {
+          tags.push_back(getTagName(getU32LEB()));
+          labels.push_back(std::nullopt);
+        } else {
+          return Err{"ON opcode expected"};
+        }
+      }
+      return builder.makeResumeWith(type, tags, labels);
     }
 
 #define BINARY_INT(code)                                                       \

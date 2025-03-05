@@ -322,6 +322,10 @@ template<typename Ctx>
 Result<> makeResumeThrow(Ctx&, Index, const std::vector<Annotation>&);
 template<typename Ctx>
 Result<> makeStackSwitch(Ctx&, Index, const std::vector<Annotation>&);
+template<typename Ctx>
+Result<> makeResumeWith(Ctx&, Index, const std::vector<Annotation>&);
+template<typename Ctx>
+Result<> makeSuspendTo(Ctx&, Index, const std::vector<Annotation>&);
 
 template<typename Ctx>
 Result<> ignore(Ctx&, Index, const std::vector<Annotation>&) {
@@ -415,6 +419,9 @@ Result<typename Ctx::HeapTypeT> absheaptype(Ctx& ctx, Shareability share) {
   if (ctx.in.takeKeyword("cont"sv)) {
     return ctx.makeContType(share);
   }
+  if (ctx.in.takeKeyword("handler"sv)) {
+    return ctx.makeHandlerType(share);
+  }
   if (ctx.in.takeKeyword("none"sv)) {
     return ctx.makeNoneType(share);
   }
@@ -429,6 +436,9 @@ Result<typename Ctx::HeapTypeT> absheaptype(Ctx& ctx, Shareability share) {
   }
   if (ctx.in.takeKeyword("nocont"sv)) {
     return ctx.makeNocontType(share);
+  }
+  if (ctx.in.takeKeyword("nohandler"sv)) {
+    return ctx.makeNohandlerType(share);
   }
   return ctx.in.err("expected abstract heap type");
 }
@@ -491,6 +501,9 @@ MaybeResult<typename Ctx::TypeT> maybeReftypeAbbrev(Ctx& ctx) {
   if (ctx.in.takeKeyword("contref"sv)) {
     return ctx.makeRefType(ctx.makeContType(Unshared), Nullable, Inexact);
   }
+  if (ctx.in.takeKeyword("handlerref"sv)) {
+    return ctx.makeRefType(ctx.makeHandlerType(Unshared), Nullable, Inexact);
+  }
   if (ctx.in.takeKeyword("nullref"sv)) {
     return ctx.makeRefType(ctx.makeNoneType(Unshared), Nullable, Inexact);
   }
@@ -505,6 +518,9 @@ MaybeResult<typename Ctx::TypeT> maybeReftypeAbbrev(Ctx& ctx) {
   }
   if (ctx.in.takeKeyword("nullcontref"sv)) {
     return ctx.makeRefType(ctx.makeNocontType(Unshared), Nullable, Inexact);
+  }
+  if (ctx.in.takeKeyword("nullhandlerref"sv)) {
+    return ctx.makeRefType(ctx.makeNohandlerType(Unshared), Nullable, Inexact);
   }
   return {};
 }
@@ -692,6 +708,23 @@ MaybeResult<typename Ctx::ContinuationT> conttype(Ctx& ctx) {
   }
 
   return ctx.makeContType(*x);
+}
+
+// handlertype ::= '(' 'handler'  t*:vec(param) ')' => handler [t*]
+template<typename Ctx>
+MaybeResult<typename Ctx::HandlerT> handlertype(Ctx& ctx) {
+  if (!ctx.in.takeSExprStart("handler"sv)) {
+    return {};
+  }
+
+  auto parsedResults = results(ctx);
+  CHECK_ERR(parsedResults);
+
+  if (!ctx.in.takeRParen()) {
+    return ctx.in.err("expected end of handler name type");
+  }
+
+  return ctx.makeHandlerType(parsedResults.getPtr());
 }
 
 // storagetype ::= valtype | packedtype
@@ -2631,6 +2664,33 @@ Result<> makeStackSwitch(Ctx& ctx,
   return ctx.makeStackSwitch(pos, annotations, *type, *tag);
 }
 
+// suspend_to ::= 'suspend_to' typeidx tagidx
+template<typename Ctx>
+Result<>
+makeSuspendTo(Ctx& ctx, Index pos, const std::vector<Annotation>& annotations) {
+  auto type = typeidx(ctx);
+  CHECK_ERR(type);
+  auto tag = tagidx(ctx);
+  CHECK_ERR(tag);
+
+  return ctx.makeSuspendTo(pos, annotations, *type, *tag);
+}
+
+// resume_with ::= 'resume_throw' typeidx tagidx ('(' 'on' tagidx labelidx |
+// 'on' tagidx switch ')')*
+template<typename Ctx>
+Result<> makeResumeWith(Ctx& ctx,
+                        Index pos,
+                        const std::vector<Annotation>& annotations) {
+  auto type = typeidx(ctx);
+  CHECK_ERR(type);
+
+  auto resumetable = makeResumeTable(ctx);
+  CHECK_ERR(resumetable);
+
+  return ctx.makeResumeWith(pos, annotations, *type, *resumetable);
+}
+
 // =======
 // Modules
 // =======
@@ -2935,6 +2995,11 @@ template<typename Ctx> Result<> comptype(Ctx& ctx) {
   if (auto type = arraytype(ctx)) {
     CHECK_ERR(type);
     ctx.addArrayType(*type);
+    return Ok{};
+  }
+  if (auto type = handlertype(ctx)) {
+    CHECK_ERR(type);
+    ctx.addHandlerType(*type);
     return Ok{};
   }
   return ctx.in.err("expected type description");

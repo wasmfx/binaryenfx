@@ -727,6 +727,20 @@ public:
     ConstraintCollector{builder, children}.visitStackSwitch(curr, ct);
     return popConstrainedChildren(children);
   }
+
+  Result<> visitSuspendTo(SuspendTo* curr,
+                          std::optional<HeapType> ht = std::nullopt) {
+    std::vector<Child> children;
+    ConstraintCollector{builder, children}.visitSuspendTo(curr, ht);
+    return popConstrainedChildren(children);
+  }
+
+  Result<> visitResumeWith(ResumeWith* curr,
+                           std::optional<HeapType> ct = std::nullopt) {
+    std::vector<Child> children;
+    ConstraintCollector{builder, children}.visitResumeWith(curr, ct);
+    return popConstrainedChildren(children);
+  }
 };
 
 Result<> IRBuilder::visit(Expression* curr) {
@@ -2497,6 +2511,54 @@ Result<> IRBuilder::makeStackSwitch(HeapType ct, Name tag) {
   CHECK_ERR(validateTypeAnnotation(ct, curr.cont));
 
   push(builder.makeStackSwitch(tag, std::move(curr.operands), curr.cont));
+  return Ok{};
+}
+
+Result<> IRBuilder::makeSuspendTo(HeapType handler, Name tag) {
+  SuspendTo curr(wasm.allocator);
+  curr.tag = tag;
+  curr.operands.resize(wasm.getTag(tag)->params().size());
+  CHECK_ERR(ChildPopper{*this}.visitSuspendTo(&curr, handler));
+  CHECK_ERR(validateTypeAnnotation(handler, curr.handler));
+
+  std::vector<Expression*> operands(curr.operands.begin(), curr.operands.end());
+  push(builder.makeSuspendTo(tag, curr.handler, operands));
+  return Ok{};
+}
+
+Result<>
+IRBuilder::makeResumeWith(HeapType ct,
+                          const std::vector<Name>& tags,
+                          const std::vector<std::optional<Index>>& labels) {
+  if (tags.size() != labels.size()) {
+    return Err{"the sizes of tags and labels must be equal"};
+  }
+  if (!ct.isContinuation()) {
+    return Err{"expected continuation type"};
+  }
+
+  ResumeWith curr(wasm.allocator);
+  auto nparams = ct.getContinuation().type.getSignature().params.size();
+  if (nparams < 1) {
+    return Err{"arity mismatch: the continuation argument must have, at least, "
+               "unary arity"};
+  }
+  curr.operands.resize(nparams - 1);
+
+  Result<ResumeTable> resumetable = makeResumeTable(
+    labels,
+    [this](Index i) { return this->getLabelName(i); },
+    [this](Index i) { return this->getLabelType(i); });
+  CHECK_ERR(resumetable);
+  CHECK_ERR(ChildPopper{*this}.visitResumeWith(&curr, ct));
+  CHECK_ERR(validateTypeAnnotation(ct, curr.cont));
+
+  push(builder.makeResumeWith(tags,
+                              resumetable->targets,
+                              resumetable->sentTypes,
+                              std::move(curr.operands),
+                              curr.cont));
+
   return Ok{};
 }
 

@@ -152,6 +152,8 @@ GlobalTypeRewriter::TypeMap GlobalTypeRewriter::rebuildTypes(
       }
       case HeapTypeKind::Cont:
         WASM_UNREACHABLE("TODO: cont");
+      case HeapTypeKind::Handler:
+        WASM_UNREACHABLE("TODO: handler");
       case HeapTypeKind::Basic:
         WASM_UNREACHABLE("unexpected kind");
     }

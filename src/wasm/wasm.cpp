@@ -1446,6 +1446,36 @@ void StackSwitch::finalize() {
     this->cont->type.getHeapType().getContinuation().type.getSignature().params;
 }
 
+void SuspendTo::finalize(Module* wasm) {
+  if (handler->type == Type::unreachable) {
+    type = Type::unreachable;
+    return;
+  }
+
+  if (!handleUnreachableOperands(this) && wasm) {
+    auto tag_results = wasm->getTag(this->tag)->results();
+    Tuple results{};
+    results.assign(tag_results.begin(), tag_results.end());
+    results.push_back(handler->type);
+    type = Type(results);
+  }
+}
+
+void ResumeWith::finalize() {
+  if (cont->type == Type::unreachable) {
+    type = Type::unreachable;
+    return;
+  }
+  if (handleUnreachableOperands(this)) {
+    return;
+  }
+
+  assert(this->cont->type.isContinuation());
+  const Signature& contSig =
+    this->cont->type.getHeapType().getContinuation().type.getSignature();
+  type = contSig.results;
+}
+
 size_t Function::getNumParams() { return getParams().size(); }
 
 size_t Function::getNumVars() { return vars.size(); }

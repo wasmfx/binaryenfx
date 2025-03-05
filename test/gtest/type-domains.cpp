@@ -114,6 +114,19 @@ void printCont(std::ostream& o, ContPlan& plan) {
   o << ")";
 }
 
+void printHandler(std::ostream& o, HandlerPlan& plan) {
+  o << "(handler ";
+  if (!plan.empty()) {
+    o << " (result";
+    for (auto& type : plan) {
+      o << " ";
+      printType(o, type);
+    }
+    o << ")";
+  }
+  o << ")";
+}
+
 void printTypeDef(std::ostream& o, const TypeBuilderPlan& plan, size_t i) {
   auto def = plan.defs[i];
   auto super = plan.supertypes[i];
@@ -137,6 +150,8 @@ void printTypeDef(std::ostream& o, const TypeBuilderPlan& plan, size_t i) {
     printArray(o, *array);
   } else if (auto* cont = def.getCont()) {
     printCont(o, *cont);
+  } else if (auto* handler = def.getHandler()) {
+    printHandler(o, *handler);
   } else {
     WASM_UNREACHABLE("unexpected kind");
   }
@@ -183,6 +198,9 @@ std::ostream& operator<<(std::ostream& o, const TypeBuilderPlan& plan) {
         break;
       case ContKind:
         o << "s";
+        break;
+      case HandlerKind:
+        o << "h";
         break;
     }
     if (auto super = plan.supertypes[i]) {
@@ -496,6 +514,10 @@ fuzztest::Domain<HeapTypePlan> AvailableStrictSubHeapType(TypeBuilderPlan plan,
         return matchingOrAbstract(
           [](auto kind) { return kind == ContKind; },
           fuzztest::Just(HeapType(HeapTypes::nocont.getBasic(share))));
+      case HeapType::handler:
+        return matchingOrAbstract(
+          [](auto kind) { return kind == HandlerKind; },
+          fuzztest::Just(HeapType(HeapTypes::nocont.getBasic(share))));
       case HeapType::any:
         return matchingOrAbstract(
           [](auto kind) { return kind == StructKind || kind == ArrayKind; },
@@ -532,6 +554,7 @@ fuzztest::Domain<HeapTypePlan> AvailableStrictSubHeapType(TypeBuilderPlan plan,
       case HeapType::nofunc:
       case HeapType::nocont:
       case HeapType::noexn:
+      case HeapType::nohandler:
         // No strict subtypes, so just return super.
         return fuzztest::Just(super);
     }
@@ -552,6 +575,9 @@ fuzztest::Domain<HeapTypePlan> AvailableStrictSubHeapType(TypeBuilderPlan plan,
         break;
       case ContKind:
         bottom = HeapTypes::nocont.getBasic(share);
+        break;
+      case HandlerKind:
+        bottom = HeapTypes::nohandler.getBasic(share);
         break;
     }
     if (matches.empty()) {
@@ -586,6 +612,7 @@ AvailableStrictSuperHeapType(TypeBuilderPlan plan, HeapTypePlan sub) {
       case HeapType::cont:
       case HeapType::any:
       case HeapType::exn:
+      case HeapType::handler:
         // No strict supertypes, so just return sub.
         return fuzztest::Just(sub);
       case HeapType::eq:
@@ -617,6 +644,10 @@ AvailableStrictSuperHeapType(TypeBuilderPlan plan, HeapTypePlan sub) {
         return matchingOrAbstract(
           [](auto kind) { return kind == ContKind; },
           fuzztest::Just(HeapType(HeapTypes::cont.getBasic(share))));
+      case HeapType::nohandler:
+        return matchingOrAbstract(
+          [](auto kind) { return kind == HandlerKind; },
+          fuzztest::Just(HeapType(HeapTypes::handler.getBasic(share))));
       case HeapType::noexn:
         return fuzztest::Just(
           HeapTypePlan{HeapType(HeapTypes::exn.getBasic(share))});
@@ -648,6 +679,9 @@ AvailableStrictSuperHeapType(TypeBuilderPlan plan, HeapTypePlan sub) {
         break;
       case ContKind:
         abstract = {HeapTypes::cont.getBasic(share)};
+        break;
+      case HandlerKind:
+        abstract = {HeapTypes::handler.getBasic(share)};
         break;
     }
     assert(!abstract.empty());
@@ -884,6 +918,22 @@ fuzztest::Domain<ContPlan> SubContDef(TypeBuilderPlan plan, ContPlan super) {
   }
 }
 
+fuzztest::Domain<HandlerPlan> HandlerDef(TypeBuilderPlan plan) {
+  auto results = fuzztest::VectorOf(AvailableType(std::move(plan)))
+                   .WithMaxSize(MaxResultsSize);
+  return results;
+}
+
+fuzztest::Domain<HandlerPlan> SubHandlerDef(TypeBuilderPlan plan,
+                                            HandlerPlan super) {
+  auto results = MapElements(
+    [plan = std::move(plan)](TypePlan type) {
+      return AvailableSubType(std::move(plan), type);
+    },
+    super);
+  return results;
+}
+
 fuzztest::Domain<TypeBuilderPlan> StepTypeDefinition(TypeBuilderPlan plan);
 
 template<typename T>
@@ -931,6 +981,12 @@ fuzztest::Domain<TypeBuilderPlan> StepTypeDefinition(TypeBuilderPlan plan) {
         super ? SubContDef(plan, *plan.defs[*super].getCont()) : ContDef(plan);
       return fuzztest::FlatMap(
         AppendTypeDef<ContPlan>, fuzztest::Just(std::move(plan)), def);
+    }
+    case HandlerKind: {
+      auto def = super ? SubHandlerDef(plan, *plan.defs[*super].getHandler())
+                       : HandlerDef(plan);
+      return fuzztest::FlatMap(
+        AppendTypeDef<HandlerPlan>, fuzztest::Just(std::move(plan)), def);
     }
   }
   WASM_UNREACHABLE("unexpected kind");
@@ -1134,6 +1190,15 @@ void TestBuiltTypes(std::pair<std::vector<HeapType>, TypeBuilderPlan> pair) {
     }
   };
 
+  auto checkHandler = [&](HandlerPlan& plan, HeapType type) {
+    ASSERT_TRUE(type.isHandler());
+    auto results = type.getHandler().results;
+    ASSERT_EQ(plan.size(), results.size());
+    for (size_t i = 0; i < plan.size(); ++i) {
+      checkType(plan[i], results[i]);
+    }
+  };
+
   auto checkDef = [&](TypeDefPlan& plan, HeapType type) {
     if (auto* f = plan.getFunc()) {
       checkFunc(*f, type);
@@ -1143,6 +1208,8 @@ void TestBuiltTypes(std::pair<std::vector<HeapType>, TypeBuilderPlan> pair) {
       checkArray(*a, type);
     } else if (auto* c = plan.getCont()) {
       checkCont(*c, type);
+    } else if (auto* h = plan.getHandler()) {
+      checkHandler(*h, type);
     } else {
       WASM_UNREACHABLE("unexpected variant");
     }

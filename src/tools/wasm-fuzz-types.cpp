@@ -309,6 +309,8 @@ void Fuzzer::checkCanonicalization() {
             continue;
           case HeapTypeKind::Cont:
             WASM_UNREACHABLE("TODO: cont");
+          case HeapTypeKind::Handler:
+            WASM_UNREACHABLE("TODO: handler");
           case HeapTypeKind::Basic:
             break;
         }

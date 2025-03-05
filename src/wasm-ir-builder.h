@@ -244,6 +244,10 @@ public:
                            const std::vector<Name>& tags,
                            const std::vector<std::optional<Index>>& labels);
   Result<> makeStackSwitch(HeapType ct, Name tag);
+  Result<> makeResumeWith(HeapType ct,
+                          const std::vector<Name>& tags,
+                          const std::vector<std::optional<Index>>& labels);
+  Result<> makeSuspendTo(HeapType handler, Name tag);
 
   // Private functions that must be public for technical reasons.
   Result<> visitExpression(Expression*);

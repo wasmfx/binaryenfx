@@ -251,6 +251,7 @@ struct TypeSSA : public Pass {
           break;
         case HeapTypeKind::Func:
         case HeapTypeKind::Cont:
+        case HeapTypeKind::Handler:
         case HeapTypeKind::Basic:
           WASM_UNREACHABLE("unexpected kind");
       }

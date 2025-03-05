@@ -4815,12 +4815,23 @@ switch (buf[0]) {
               return Ok{};
             }
             goto parse_error;
-          case '_':
-            if (op == "resume_throw"sv) {
-              CHECK_ERR(makeResumeThrow(ctx, pos, annotations));
-              return Ok{};
+          case '_': {
+            switch (buf[7]) {
+              case 't':
+                if (op == "resume_throw"sv) {
+                  CHECK_ERR(makeResumeThrow(ctx, pos, annotations));
+                  return Ok{};
+                }
+                goto parse_error;
+              case 'w':
+                if (op == "resume_with"sv) {
+                  CHECK_ERR(makeResumeWith(ctx, pos, annotations));
+                  return Ok{};
+                }
+                goto parse_error;
+              default: goto parse_error;
             }
-            goto parse_error;
+          }
           default: goto parse_error;
         }
       }
@@ -5177,12 +5188,23 @@ switch (buf[0]) {
           default: goto parse_error;
         }
       }
-      case 'u':
-        if (op == "suspend"sv) {
-          CHECK_ERR(makeSuspend(ctx, pos, annotations));
-          return Ok{};
+      case 'u': {
+        switch (buf[7]) {
+          case '\0':
+            if (op == "suspend"sv) {
+              CHECK_ERR(makeSuspend(ctx, pos, annotations));
+              return Ok{};
+            }
+            goto parse_error;
+          case '_':
+            if (op == "suspend_to"sv) {
+              CHECK_ERR(makeSuspendTo(ctx, pos, annotations));
+              return Ok{};
+            }
+            goto parse_error;
+          default: goto parse_error;
         }
-        goto parse_error;
+      }
       case 'w':
         if (op == "switch"sv) {
           CHECK_ERR(makeStackSwitch(ctx, pos, annotations));

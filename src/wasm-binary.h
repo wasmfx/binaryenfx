@@ -330,6 +330,8 @@ enum EncodedType {
   exact = -0x1e,        // 0x62
   contref = -0x18,      // 0x68
   nullcontref = -0x0b,  // 0x75
+  handlerref = -0x1e,
+  nullhandlerref = -0x1a, // 0x66
   // exception handling
   exnref = -0x17,    // 0x69
   nullexnref = -0xc, // 0x74
@@ -345,26 +347,29 @@ enum EncodedType {
   SharedDef = 0x65,
   Shared = -0x1b, // Also 0x65 as an SLEB128
   Rec = 0x4e,
+  Handler = 0x5C, // 0x5C
   // block_type
   Empty = -0x40, // 0x40
 };
 
 enum EncodedHeapType {
-  nofunc = -0xd,   // 0x73
-  noext = -0xe,    // 0x72
-  none = -0xf,     // 0x71
-  func = -0x10,    // 0x70
-  ext = -0x11,     // 0x6f
-  any = -0x12,     // 0x6e
-  eq = -0x13,      // 0x6d
-  exn = -0x17,     // 0x69
-  noexn = -0xc,    // 0x74
-  cont = -0x18,    // 0x68
-  nocont = -0x0b,  // 0x75
-  i31 = -0x14,     // 0x6c
-  struct_ = -0x15, // 0x6b
-  array = -0x16,   // 0x6a
-  string = -0x19,  // 0x67
+  nofunc = -0xd,  // 0x73
+  noext = -0xe,   // 0x72
+  none = -0xf,    // 0x71
+  func = -0x10,   // 0x70
+  ext = -0x11,    // 0x6f
+  any = -0x12,    // 0x6e
+  eq = -0x13,     // 0x6d
+  exn = -0x17,    // 0x69
+  noexn = -0xc,   // 0x74
+  cont = -0x18,   // 0x68
+  nocont = -0x0b, // 0x75
+  handler = -0x1e,
+  nohandler = -0x1a, // 0x66
+  i31 = -0x14,       // 0x6c
+  struct_ = -0x15,   // 0x6b
+  array = -0x16,     // 0x6a
+  string = -0x19,    // 0x67
 };
 
 namespace CustomSections {
@@ -1168,9 +1173,11 @@ enum ASTNodes {
   Suspend = 0xe2,
   Resume = 0xe3,
   ResumeThrow = 0xe4,
-  Switch = 0xe5,  // NOTE(dhil): the internal class is known as
-                  // StackSwitch to avoid conflict with the existing
-                  // 'switch table'.
+  Switch = 0xe5, // NOTE(dhil): the internal class is known as
+                 // StackSwitch to avoid conflict with the existing
+                 // 'switch table'.
+  SuspendTo = 0xe7,
+  ResumeWith = 0xe8,
   OnLabel = 0x00, // (on $tag $label)
   OnSwitch = 0x01 // (on $tag switch)
 };
